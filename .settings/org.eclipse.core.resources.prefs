@@ -1,6 +1,7 @@
 eclipse.preferences.version=1
 encoding//src/UFLDL/MNIST.py=UTF-8
 encoding//src/UFLDL/PCAAndWhitening.py=UTF-8
+encoding//src/UFLDL/SelfTaughtLearning.py=UTF-8
 encoding//src/UFLDL/SoftmaxRegression.py=UTF-8
 encoding//src/UFLDL/SparseAutoencoder.py=UTF-8
 encoding//src/UFLDL/Vectorization.py=UTF-8
