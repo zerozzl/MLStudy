@@ -1,26 +1,8 @@
 # coding: UTF-8
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b;
-import struct
+import MNIST
 import matplotlib.pyplot as plt
-
-# 读取图片数据
-def loadImages(filepath, num):
-    binfile = open(filepath , 'rb');
-    buf = binfile.read();
-    datas = [];
-    
-    index = 0;
-    magic, numImages , numRows , numColumns = struct.unpack_from('>IIII' , buf , index);
-    index += struct.calcsize('>IIII');
-    
-    for i in range(num):
-        im = struct.unpack_from('>784B' , buf, index);
-        index += struct.calcsize('>784B');
-        datas.append(im);
-    
-    datas = np.mat(datas).T / 255.0;
-    return datas;
 
 # 画出源数据
 def plotDatas(folder, datas):
@@ -139,7 +121,8 @@ def main():
     lamb = 3e-3;
     beta = 3;
     
-    patches = loadImages(dataFile, 10000);
+    images = MNIST.loadImages(dataFile, 10000);
+    patches = images / 255.0;
     
     # 画图元数据
     plotDatas(resultFolder, patches);

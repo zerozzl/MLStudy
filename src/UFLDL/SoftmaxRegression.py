@@ -1,42 +1,7 @@
 #coding: UTF-8
-import struct
 import numpy as np
+import MNIST
 from scipy.optimize import fmin_l_bfgs_b
-
-# 读取图片数据
-def loadImages(filepath):
-    binfile = open(filepath , 'rb')
-    buf = binfile.read()
-    datas = [];
-    
-    index = 0
-    magic, numImages , numRows , numColumns = struct.unpack_from('>IIII' , buf , index)
-    index += struct.calcsize('>IIII')
-    
-    for i in range(numImages):
-        im = struct.unpack_from('>784B' ,buf, index)
-        index += struct.calcsize('>784B')
-        datas.append(im);
-    
-    datas = np.mat(datas).T;
-    return datas;
-
-# 读取标签数据
-def loadLabels(filepath):
-    binfile = open(filepath , 'rb')
-    buf = binfile.read()
-    labels = [];
-    
-    index = 0
-    magic, numLabels = struct.unpack_from('>II' , buf , index)
-    index += struct.calcsize('>II')
-    
-    for i in range(numLabels):
-        la = struct.unpack_from('>1B' ,buf, index)
-        index += struct.calcsize('>1B')
-        labels.append(int(la[0]));
-    
-    return labels;
 
 # 读取参数
 def loadThetas(filepath):
@@ -99,8 +64,8 @@ def train(imgData, labData, resultFolder):
     lamb = 1e-4;
     checkGrad = False;
     
-    images = loadImages(imgData);
-    labels = loadLabels(labData);
+    images = MNIST.loadImages(imgData);
+    labels = MNIST.loadLabels(labData);
     
     thetas = 0.005 * np.random.random(inputSize * numClasses);
     
@@ -125,8 +90,8 @@ def predict(imgData, labData, resultFolder):
     inputSize = 28 * 28;
     numClasses = 10;
     
-    images = loadImages(imgData);
-    labels = loadLabels(labData);
+    images = MNIST.loadImages(imgData);
+    labels = MNIST.loadLabels(labData);
     thetas = np.array(loadThetas(resultFolder + "thetas.txt"));
     
     thetas = thetas.reshape(numClasses, inputSize);
