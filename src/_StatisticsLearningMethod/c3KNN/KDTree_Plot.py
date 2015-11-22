@@ -44,7 +44,6 @@ def build_kdtree(data, d, square):
     p, m = median(data)
  
     del data[m]
-    print data, p
  
     if m >= 0:
         sub_square = copy.deepcopy(square)
@@ -64,7 +63,6 @@ def build_kdtree(data, d, square):
  
  
 build_kdtree(T, 0, [[0, 0], [10, 10]])
-print history_quare
  
  
 # draw an animation to show how it works, the data comes from history
@@ -80,7 +78,7 @@ def init():
     plt.grid(True)
     plt.xlabel('x_1')
     plt.ylabel('x_2')
-    plt.title('build kd tree')
+    plt.title('Build KD-Tree')
     draw_point(T)
  
  
@@ -98,5 +96,6 @@ def animate(i):
 # call the animator.  blit=true means only re-draw the parts that have changed.
 anim = animation.FuncAnimation(fig, animate, init_func=init, frames=len(history_quare), interval=1000, repeat=False,
                                blit=False)
+
 plt.show()
-anim.save('kdtree_build.gif', fps=2, writer='imagemagick')
+# anim.save(path.PATH_SLM + 'kdtree_build.gif', fps=2, writer='imagemagick')
