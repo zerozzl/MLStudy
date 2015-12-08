@@ -6,44 +6,43 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter  
 import matplotlib.pyplot as plt  
 
-def chooseFun(code):
-    if code == 1:
-        return
-
 def h_1(x, y):
     return np.sin(np.sqrt(np.square(x) + np.square(y))) / np.sqrt(np.square(x) + np.square(y)) + np.exp((np.cos(2 * math.pi * x) + np.cos(2 * math.pi * y)) / 2) - 2.71289;
 
-fig = plt.figure()  
-ax = fig.gca(projection='3d')  
-X = np.arange(-4, 4, 0.1)  
-Y = np.arange(-4, 4, 0.1)
-X, Y = np.meshgrid(X, Y)  
-Z = h_1(X, Y);  
-surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.jet, linewidth=0, antialiased=False)  
-ax.set_zlim(-1.01, 1.01)  
-   
-ax.zaxis.set_major_locator(LinearLocator(10))  
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))  
-   
-fig.colorbar(surf, shrink=0.5, aspect=5)  
-   
-plt.show() 
+def h_2(x, y):
+    return 0.5 - (np.square((np.sin(np.sqrt(np.square(x) + np.square(y))))) - 0.5) / np.square((1 + 0.001 * (np.square(x) + np.square(y))));
 
-'''
-function f = fun(X)
-x = X(1);
-y = X(2);
+def h_3(x, y):
+    return np.square(x) - 10 * np.cos(2 * math.pi * x) + 10 + np.square(y) - 10 * np.cos(2 * math.pi * y) + 10;
 
-choose = 1;
+def h_4(x, y):
+    return np.square(x) - x * y + 6 * x + np.square(y);
 
-switch choose
-    case 2
-        f_schaffer = 0.5-((sin(sqrt(x.^2+y.^2))).^2-0.5)./(1+0.001*(x.^2+y.^2)).^2; # x[-4, 4]
-        f = f_schaffer;
-    case 3
-        f_rastrigin = x.^2-10*cos(2*pi*x)+10 + y.^2-10*cos(2*pi*y)+10; # x[-4, 4]
-        f = -f_rastrigin; 
-end
+def plot(code):
+    h = None;
+    if code == 1:
+        h = h_1;
+    elif code == 2:
+        h = h_2;
+    elif code == 3:
+        h = h_3;
+    elif code == 4:
+        h = h_4;
+        
+    fig = plt.figure();
+    ax = fig.gca(projection='3d');
+    x = np.arange(-4, 4, 0.1);
+    y = np.arange(-4, 4, 0.1);
+    x, y = np.meshgrid(x, y);
+    z = h(x, y);
+    surf = ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=cm.jet, linewidth=0, antialiased=False);
+    ax.set_zlim(-1.01, 1.01);
+       
+    ax.zaxis.set_major_locator(LinearLocator(10));
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'));
+    
+    fig.colorbar(surf, shrink=0.5, aspect=5);
 
-y = x1^2 - x1*x2 + 6 * x1 + x2^2;
-'''
+    plt.show();
+
+plot(1);
