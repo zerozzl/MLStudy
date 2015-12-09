@@ -1,5 +1,6 @@
 eclipse.preferences.version=1
-encoding//src/OptimizationAlgorithm/GeneticAlgorithm/GA.py=utf-8
+encoding//src/OptimizationAlgorithm/GeneticAlgorithm.py=utf-8
+encoding//src/OptimizationAlgorithm/ParticleSwarmOptimization.py=utf-8
 encoding//src/OptimizationAlgorithm/__init__.py=utf-8
 encoding//src/StatisticsLearningMethod/c3KNN/KDTree_Plot.py=utf-8
 encoding//src/UFLDL/MNIST.py=UTF-8

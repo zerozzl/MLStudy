@@ -2,6 +2,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# 适应度函数
+def fitness_fun(x):
+    return x * np.sin(10 * np.pi * x) + 2.0;
+    
 # 染色体
 class Genome:
     
@@ -51,7 +55,8 @@ class GenAlg:
     cross_rate: 交叉生成的后代的比例
     mutate_rate: 突变率
     '''
-    def __init__(self, gen_param, scale, cross_rate, mutate_rate):
+    def __init__(self, fitness_fun, gen_param, scale, cross_rate, mutate_rate):
+        self.fitness = fitness_fun;
         self.genScope = gen_param[1] - gen_param[0]; # 染色体取值范围
         self.genScopeBegin = gen_param[0];
         self.genScopeEnd = gen_param[1];
@@ -63,6 +68,7 @@ class GenAlg:
         self.bestFit = 0; # 最优值
         self.bestGen = None; # 最优值对应的染色体
         self.tryTimes = 100; # 达到最大值后尝试的次数，如果达到最大值后再尝试tryTimes次，最大值仍然没有改变，则停止
+        self.iterTimes = 0; # 总迭代次数
     
     # 初始化染色体
     def initGenomes(self):
@@ -73,10 +79,6 @@ class GenAlg:
             genList.append(gen);
         return genList;
     
-    # 适应度函数
-    def fitness(self, x):
-        return x * np.sin(10 * np.pi * x) + 2.0;
-   
     # 轮盘赌选取下一代染色体
     def getChromoRoulette(self, genList):
         totalFitness = 0;
@@ -173,7 +175,10 @@ class GenAlg:
         
         best = self.bestFit;
         ttimes = self.tryTimes;
+        self.iterTimes = 0;
+        
         while ttimes > 0:
+            self.iterTimes += 1;
             self.competition();
             if self.bestFit > best:
                 best = self.bestFit;
@@ -181,6 +186,7 @@ class GenAlg:
             else:
                 ttimes -= 1;
         
+        print 'Iterater Times: ', self.iterTimes;
         print 'best pos: ', self.bestGen.pos;
         print 'best fitness: ', self.bestFit;
         # 画出最终图像
@@ -206,6 +212,6 @@ class GenAlg:
         plt.ylim(0, 4);
         plt.show();
 
-alg = GenAlg([-1, 2, 22], 50, 0.2, 0.05);
+alg = GenAlg(fitness_fun, [-1, 2, 22], 50, 0.2, 0.05);
 alg.start();
 
