@@ -3,6 +3,7 @@ import numpy as np
 import struct
 import matplotlib.pyplot as plt
 import time
+from scipy.signal import convolve2d
 
 # 卷积神经网络结构
 class CNNNet:
@@ -17,6 +18,12 @@ class CNNNet:
         
         self.ffw = None;
         self.ffb = None;
+        self.fv = None;
+        self.o = None;
+        self.e = None;
+        self.L = None;
+        self.od = None;
+        self.fvd = None;
         self.rL = None;
 
 # 读取图片数据
@@ -92,19 +99,69 @@ def cnninit(net, x, y):
     
     return net;
 
-    plt.show()
-
 # 前向传播
 def cnnff(net ,x):
     n = len(net.layers);
-    net.layers[0]['a'] = x;
+    net.layers[0]['a'] = [x];
     inputmaps = 1;
     
     for l in range(1, n):
         if net.layers[l]['type'] == 'c':
+            net.layers[l]['a'] = [];
             for j in range(net.layers[l]['outputmaps']):
-                tm, tr, tc = np.shape(net.layers[l - 1]['a']);
+                tm, tr, tc = np.shape(net.layers[l - 1]['a'][0]);
                 z = np.zeros((tm, tr - net.layers[l]['kernelsize'] + 1, tc - net.layers[l]['kernelsize'] + 1));
+                for i in range(inputmaps):
+                    for dl in range(tm):
+                        z[dl] += convolve2d(net.layers[l - 1]['a'][i][dl], net.layers[l]['k'][i][j], mode='valid');
+                net.layers[l]['a'].append(sigmoid(z + net.layers[l]['b'][j]));
+            inputmaps = net.layers[l]['outputmaps'];
+        elif net.layers[l]['type'] == 's':
+            net.layers[l]['a'] = [];
+            for j in range(inputmaps):
+                tm, tr, tc = np.shape(net.layers[l-1]['a'][j]);
+                z = [];
+                for dl in range(tm):
+                    z.append(convolve2d(net.layers[l - 1]['a'][j][dl], np.ones((net.layers[l]['scale'], net.layers[l]['scale'])) / np.square(net.layers[l]['scale']), mode='valid'));
+                z = np.array(z);
+                net.layers[l]['a'].append(z[:, ::net.layers[l]['scale'], ::net.layers[l]['scale']]);
+    
+    net.fv = [];
+    for j in range(len(net.layers[n - 1]['a'])):
+        tm, tr, tc = np.shape(net.layers[n - 1]['a'][j]);
+        if j == 0:
+            net.fv = np.reshape(net.layers[n - 1]['a'][j], (tm, tr * tc));
+        else:
+            net.fv = np.append(net.fv, np.reshape(net.layers[n - 1]['a'][j], (tm, tr * tc)), axis = 1);
+    
+    net.o = sigmoid(np.mat(net.fv) * np.mat(net.ffw).T + np.mat(net.ffb).T);
+    
+    return net;
+
+# sigmoid函数
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x));
+
+# 反向传播误差
+def cnnbp(net, y):
+    n = len(net.layers);
+    
+    net.e = net.o - y; # error
+    net.L = 0.5 * np.sum(np.square(net.e)) / np.shape(net.e)[1];
+    
+    net.od = np.multiply(net.e, np.multiply(net.o, 1 - net.o));
+    net.fvd = np.mat(net.od) * np.mat(net.ffw); # (50, 192)
+
+    if net.layers[n-1]['type'] == 'c':
+        net.fvd = np.multiply(net.fvd, np.multiply(net.fv, (1 - net.fv)));
+    
+    tm, tr, tc = np.shape(net.layers[n - 1]['a'][0]);
+    fvnum = tr * tc;
+    
+    net.layers[n - 1]['d'] = [];
+    for j in range(len(net.layers[n - 1]['a'])):
+        net.layers[n - 1]['d'].append(np.array(net.fvd[:, j * fvnum : (j + 1) * fvnum]).reshape(tm, tr, tc));
+    
     
 
 # 训练网络
@@ -125,6 +182,7 @@ def cnntrain(net, x, y, alpha, batchsize, numepochs):
                 batch_y.append(y[dataIndex[index]]);
             
             net = cnnff(net, batch_x);
+            net = cnnbp(net, batch_y);
         
         finish = time.clock();
         print '本次执行时间: ', (finish - start), '秒';
@@ -142,5 +200,5 @@ def main(folder):
     cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
     
 
-root = 'E:/TestDatas/MLStudy/UFLDL/';
+root = '/home/hadoop/ProgramDatas/MNISTDataset/';
 main(root);
