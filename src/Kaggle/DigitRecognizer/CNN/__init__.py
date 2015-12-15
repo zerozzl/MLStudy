@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*-
 import numpy as np
-import scipy.signal
-# scipy.signal.convolve2d
+from scipy.signal import convolve2d
+import time
+# scipy.signal.convolve2d(in1, in2, mode='full | valid', boundary='fill', fillvalue=0)
 
 # 克罗内克积
 def kronecker(A, B):
@@ -60,6 +61,11 @@ A = np.mat([[1 ,1, 1, 1],
      [0, 1, 1, 0]]);
 B = np.mat([[1, 1],
      [0, 1]]);
+
 # kronecker(A, B);
-# conv(A, B);
+# K = conv(A, B);
+# K_2 = convolve2d(A, B, mode='valid');
+# print K;
+# print K_2
 # pooling(A);
+

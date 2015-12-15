@@ -1,5 +1,6 @@
 eclipse.preferences.version=1
 encoding//src/FaceRecognition/FaceOrientation.py=utf-8
+encoding//src/Kaggle/DigitRecognizer/CNN/CNN.py=UTF-8
 encoding//src/Kaggle/DigitRecognizer/CNN/__init__.py=utf-8
 encoding//src/OptimizationAlgorithm/GeneticAlgorithm.py=utf-8
 encoding//src/OptimizationAlgorithm/ParticleSwarmOptimization.py=utf-8
