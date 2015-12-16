@@ -24,7 +24,41 @@ class CNNNet:
         self.L = None;
         self.od = None;
         self.fvd = None;
+        self.dffw = None;
+        self.dffb = None;
         self.rL = None;
+    
+    # 导出模型
+    def exportModel(self, filepath):
+        data = [];
+        n = len(self.layers);
+        for l in range(n):
+            type = self.layers[l]['type'];
+            info = 'layer|l:' + str(l) + '|type:' + str(type);
+            if type == 'c':
+                info += '|outputmaps:' + str(self.layers[l]['outputmaps']) + '|kernelsize:' + str(self.layers[l]['kernelsize']);
+                k = self.layers[l]['k'];
+                si, sj, skr, skc = np.shape(k);
+                info += '|kshape:' + str(si) + '/' + str(sj) + '/' + str(skr) + '/' + str(skc) + '|k:';
+                for i in range(si):
+                    for j in range(sj):
+                        tmp = np.reshape(k[i][j], skr * skc);
+                        info += str(i) + '/' + str(j) + '/' + str(tmp) + ',';
+                info = info[:len(info)-1] + '|b:' + str(self.layers[l]['b']);
+            elif type == 's':
+                info += '|scale:' + str(self.layers[l]['scale']) + '|b:' + str(self.layers[l]['b']);
+            data.append(info);
+        
+        si, sj = np.shape(self.ffw);
+        tmp = 'ffw|shape:' + str(si) + '/' + str(sj) + '|w:' + str(np.reshape(self.ffw, si * sj));
+        data.append(tmp);
+        si, sj = np.shape(self.ffb);
+        tmp = 'ffb|shape:' + str(si) + '/' + str(sj) + '|b:' + str(np.reshape(self.ffb, si * sj));
+        data.append(tmp);
+        
+        with open(filepath, 'w') as myfile:
+            myfile.write(data[1]);
+        
 
 # 读取图片数据
 def loadImages(filepath, num=-1):
@@ -74,6 +108,39 @@ def plotDatas(datas):
     plt.imshow(datas)
     plt.show()
 
+# 画出误差图像
+def plotError(datas):
+    fig = plt.figure();
+    ax = fig.add_subplot(111);
+    x = range(len(datas));
+    ax.plot(x, datas);
+    plt.show();
+
+# sigmoid函数
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x));
+
+# 克罗内克积
+def kronecker(A, B):
+    m, n = np.shape(A);
+    p, q = np.shape(B);
+    K = np.zeros((m * p, n * q));
+    
+    for i in range(m):
+        tmpR = [];
+        for j in range(n):
+            tmp = A[i, j] * B;
+            if j == 0:
+                tmpR = tmp;
+            else:
+                tmpR = np.column_stack((tmpR, tmp));
+        if i == 0:
+            K = tmpR;
+        else:
+            K = np.row_stack((K, tmpR));
+    
+    return K;
+
 # 初始化网络参数
 def cnninit(net, x, y):
     inputmaps = 1;
@@ -94,7 +161,7 @@ def cnninit(net, x, y):
     fvnum = np.prod(mapsize) * inputmaps;
     onum = np.shape(y)[1];
     
-    net.ffw = (np.random.uniform(0, 1, (onum, fvnum)) - 0.5) * 2 * np.sqrt(6 / (onum + fvnum));
+    net.ffw = (np.random.uniform(0, 1, (onum, fvnum)) - 0.5) * 2 * np.sqrt(6.0 / (onum + fvnum));
     net.ffb = np.zeros((onum, 1));
     
     return net;
@@ -125,7 +192,7 @@ def cnnff(net ,x):
                     z.append(convolve2d(net.layers[l - 1]['a'][j][dl], np.ones((net.layers[l]['scale'], net.layers[l]['scale'])) / np.square(net.layers[l]['scale']), mode='valid'));
                 z = np.array(z);
                 net.layers[l]['a'].append(z[:, ::net.layers[l]['scale'], ::net.layers[l]['scale']]);
-    
+            
     net.fv = [];
     for j in range(len(net.layers[n - 1]['a'])):
         tm, tr, tc = np.shape(net.layers[n - 1]['a'][j]);
@@ -137,10 +204,6 @@ def cnnff(net ,x):
     net.o = sigmoid(np.mat(net.fv) * np.mat(net.ffw).T + np.mat(net.ffb).T);
     
     return net;
-
-# sigmoid函数
-def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x));
 
 # 反向传播误差
 def cnnbp(net, y):
@@ -162,7 +225,61 @@ def cnnbp(net, y):
     for j in range(len(net.layers[n - 1]['a'])):
         net.layers[n - 1]['d'].append(np.array(net.fvd[:, j * fvnum : (j + 1) * fvnum]).reshape(tm, tr, tc));
     
+    for l in range(n - 2, 0, -1):
+        if net.layers[l]['type'] == 'c':
+            net.layers[l]['d'] = [];
+            for j in range(len(net.layers[l]['a'])):
+                dtmp = [];
+                for dl in range(len(net.layers[l]['a'][j])):
+                    dtmp.append(np.multiply(np.multiply(net.layers[l]['a'][j][dl], 1 - net.layers[l]['a'][j][dl]),
+                                (kronecker(net.layers[l + 1]['d'][j][dl], np.ones((net.layers[l + 1]['scale'],net.layers[l + 1]['scale'])) / np.square(float(net.layers[l + 1]['scale']))))));
+                net.layers[l]['d'].append(dtmp);
+        elif net.layers[l]['type'] == 's':
+            net.layers[l]['d'] = [];
+            for i in range(len(net.layers[l]['a'])):
+                tm, tr, tc = np.shape(net.layers[l]['a'][0]);
+                z = np.zeros((tm, tr, tc));
+                for j in range(len(net.layers[l + 1]['a'])):
+                    ztmp = [];
+                    for dl in range(len(net.layers[l + 1]['d'][j])):
+                        ztmp.append(convolve2d(net.layers[l + 1]['d'][j][dl], np.rot90(net.layers[l + 1]['k'][i][j], 2), mode='full'));
+                    z += ztmp;
+                net.layers[l]['d'].append(z);
     
+    for l in range(1, n):
+        if net.layers[l]['type'] == 'c':
+            dk = [];
+            for i in range(len(net.layers[l - 1]['a'])):
+                dkj = [];
+                for j in range(len(net.layers[l]['a'])):
+                    tdk = [];
+                    for dl in range(len(net.layers[l - 1]['a'][i])):
+                        tdk.append(convolve2d(np.rot90(net.layers[l - 1]['a'][i][dl], 2), net.layers[l]['d'][j][dl], mode='valid'));
+                    dkj.append(np.sum(tdk, 0) / np.shape(tdk)[0]);
+                dk.append(dkj);
+            net.layers[l]['dk'] = dk;
+            
+            net.layers[l]['db'] = [];
+            for j in range(len(net.layers[l]['a'])):
+                net.layers[l]['db'].append(np.sum(net.layers[l]['d'][j]) / np.shape(net.layers[l]['d'][j])[0]);
+    
+    net.dffw = np.mat(net.od).T * np.mat(net.fv) / np.shape(net.od)[0];
+    net.dffb = np.mean(net.od, 0).T;
+    return net;
+
+# 更新梯度信息
+def cnnapplygrads(net, alpha):
+    for l in range(1, len(net.layers)):
+        if net.layers[l]['type'] == 'c':
+            for j in range(len(net.layers[l]['a'])):
+                for i in range(len(net.layers[l - 1]['a'])):
+                    net.layers[l]['k'][i][j] = net.layers[l]['k'][i][j] - alpha * net.layers[l]['dk'][i][j];
+                net.layers[l]['b'][j] = net.layers[l]['b'][j] - alpha * net.layers[l]['db'][j];
+    
+    net.ffw = net.ffw - alpha * net.dffw;
+    net.ffb = net.ffb - alpha * net.dffb;
+    
+    return net;
 
 # 训练网络
 def cnntrain(net, x, y, alpha, batchsize, numepochs):
@@ -170,7 +287,6 @@ def cnntrain(net, x, y, alpha, batchsize, numepochs):
     numbatches = m / batchsize;
     net.rL = [];
     for i in range(numepochs):
-        print '正在执行迭代: ', i, '/', numepochs;
         start = time.clock();
         dataIndex = range(m);
         np.random.shuffle(dataIndex);
@@ -183,9 +299,37 @@ def cnntrain(net, x, y, alpha, batchsize, numepochs):
             
             net = cnnff(net, batch_x);
             net = cnnbp(net, batch_y);
+            net = cnnapplygrads(net, alpha);
+            
+            if len(net.rL) == 0:
+                net.rL.append(net.L);
+            
+            net.rL.append(0.99 * net.rL[-1] + 0.01 * net.L);
+            print '正在执行迭代: ', i + 1, '/', numepochs, ', 内循环: ', b + 1, '/', numbatches, ', 误差: ', 0.99 * net.rL[-1] + 0.01 * net.L;
         
         finish = time.clock();
         print '本次执行时间: ', (finish - start), '秒';
+    
+    return net;
+
+# 测试结果
+def cnntest(net, x, y):
+    net = cnnff(net, x);
+    m = np.shape(y)[0];
+    
+    pred = np.argmax(net.o, 1);
+    pred = np.array(pred.reshape(1, pred.shape[0]))[0];
+    
+    y = np.argmax(y, 1);
+    
+    bad = [];
+    
+    for i in range(m):
+        if pred[i] != y[i]:
+            bad.append(i);
+    
+    err = float(len(bad)) / m;
+    return err, bad;
 
 def main(folder):
     train_x = loadImages(root + 'train-images.idx3-ubyte');  # (60000, 28, 28)
@@ -197,8 +341,19 @@ def main(folder):
     
     cnn = CNNNet();
     cnn = cnninit(cnn, train_x, train_y);
-    cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
+    cnn.exportModel('/home/hadoop/test');
+    
+#     cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
+#     
+#     test_x = loadImages(root + 't10k-images.idx3-ubyte');  # (10000, 28, 28)
+#     test_y = loadLabels(root + 't10k-labels.idx1-ubyte');  # (10000)
+#     
+#     err, bad = cnntest(cnn, test_x, test_y);
+#     print '正确率: ', (1 - err) * 100, '%';
+#     
+#     plotError(cnn.rL);
     
 
 root = '/home/hadoop/ProgramDatas/MNISTDataset/';
+# root = 'E:/TestDatas/MNISTDataset/';
 main(root);
