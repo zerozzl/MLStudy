@@ -30,7 +30,7 @@ class CNNNet:
     
     # 导出模型
     def exportModel(self, filepath):
-        data = [];
+        datas = [];
         n = len(self.layers);
         for l in range(n):
             type = self.layers[l]['type'];
@@ -42,23 +42,103 @@ class CNNNet:
                 info += '|kshape:' + str(si) + '/' + str(sj) + '/' + str(skr) + '/' + str(skc) + '|k:';
                 for i in range(si):
                     for j in range(sj):
-                        tmp = np.reshape(k[i][j], skr * skc);
-                        info += str(i) + '/' + str(j) + '/' + str(tmp) + ',';
-                info = info[:len(info)-1] + '|b:' + str(self.layers[l]['b']);
+                        info += str(i) + '/' + str(j) + '/' + self.mat2str(k[i][j]) + ',';
+                info = info[:len(info)-1] + '|b:' + self.mat2str(self.layers[l]['b']);
             elif type == 's':
-                info += '|scale:' + str(self.layers[l]['scale']) + '|b:' + str(self.layers[l]['b']);
-            data.append(info);
+                info += '|scale:' + str(self.layers[l]['scale']) + '|b:' + self.mat2str(self.layers[l]['b']);
+            datas.append(info);
         
         si, sj = np.shape(self.ffw);
-        tmp = 'ffw|shape:' + str(si) + '/' + str(sj) + '|w:' + str(np.reshape(self.ffw, si * sj));
-        data.append(tmp);
+        datas.append('ffw|shape:' + str(si) + '/' + str(sj) + '|w:' + self.mat2str(self.ffw));
         si, sj = np.shape(self.ffb);
-        tmp = 'ffb|shape:' + str(si) + '/' + str(sj) + '|b:' + str(np.reshape(self.ffb, si * sj));
-        data.append(tmp);
+        datas.append('ffb|shape:' + str(si) + '/' + str(sj) + '|b:' + self.mat2str(self.ffb));
         
         with open(filepath, 'w') as myfile:
-            myfile.write(data[1]);
-        
+            for line in datas:
+                myfile.write(line);
+                myfile.write('\n');
+    
+    # 矩阵数据转换成字符串保存
+    def mat2str(self, mat):
+        s = '[';
+        mat = np.mat(mat);
+        m, n = np.shape(mat);
+        for i in range(m):
+            for j in range(n):
+                s += str(mat[i, j]) + '!';
+        s = s[:len(s)-1] + ']';
+        return s;
+    
+    # 导入模型
+    def importModel(self, filepath):
+        self.layers = [];
+        self.ffw = None;
+        self.ffb = None;
+        with open(filepath, 'r') as myfile:
+            for line in myfile.readlines():
+                arr = line.strip().split('|');
+                if arr[0] == 'layer':
+                    size = len(arr);
+                    map = {};
+                    for i in range(1, size):
+                        tmp = arr[i].split(':');
+                        map[tmp[0]] = tmp[1];
+                    if map['type'] == 'i':
+                        self.layers.append({'type':'i'});
+                    elif map['type'] == 'c':
+                        tmp = {};
+                        tmp['type'] = 'c';
+                        tmp['outputmaps'] = int(map['outputmaps']);
+                        tmp['kernelsize'] = int(map['kernelsize']);
+                        
+                        b = map['b'][map['b'].index('[')+1:map['b'].index(']')]
+                        b = [float(x) for x in b.split('!')];
+                        tmp['b'] = np.array(b);
+                        
+                        kshape = [int(x) for x in map['kshape'].strip().split('/')];
+                        kernels = np.zeros((kshape[0], kshape[1], kshape[2], kshape[3]));
+                        
+                        klist = map['k'].strip().split(',');
+                        for kdata in klist:
+                            kdata = kdata.strip().split('/');
+                            kvalue = kdata[-1][kdata[-1].index('[')+1:kdata[-1].index(']')];
+                            kvalue = [float(x) for x in kvalue.split('!')];
+                            kvalue = np.reshape(np.array(kvalue), (kshape[2], kshape[3]));
+                            kernels[int(kdata[0])][int(kdata[1])] = kvalue;
+                        
+                        tmp['k'] = np.array(kernels);
+                        self.layers.append(tmp);
+                        
+                    elif map['type'] == 's':
+                        tmp = {};
+                        tmp['type'] = 's';
+                        tmp['scale'] = int(map['scale']);
+                        b = map['b'][map['b'].index('[')+1:map['b'].index(']')]
+                        b = [float(x) for x in b.split('!')];
+                        tmp['b'] = np.array(b);
+                        self.layers.append(tmp);
+                elif arr[0] == 'ffw':
+                    size = len(arr);
+                    map = {};
+                    for i in range(1, size):
+                        tmp = arr[i].split(':');
+                        map[tmp[0]] = tmp[1];
+                    wshape = [int(x) for x in map['shape'].strip().split('/')];
+                    wdata = map['w'][map['w'].index('[')+1:map['w'].index(']')];
+                    wdata = [float(x) for x in wdata.split('!')];
+                    wdata = np.reshape(np.array(wdata), (wshape[0], wshape[1]));
+                    self.ffw = np.array(wdata);
+                elif arr[0] == 'ffb':
+                    size = len(arr);
+                    map = {};
+                    for i in range(1, size):
+                        tmp = arr[i].split(':');
+                        map[tmp[0]] = tmp[1];
+                    bshape = [int(x) for x in map['shape'].strip().split('/')];
+                    bdata = map['b'][map['b'].index('[')+1:map['b'].index(']')];
+                    bdata = [float(x) for x in bdata.split('!')];
+                    bdata = np.reshape(np.array(bdata), (bshape[0], bshape[1]));
+                    self.ffb = np.array(bdata);
 
 # 读取图片数据
 def loadImages(filepath, num=-1):
@@ -109,12 +189,16 @@ def plotDatas(datas):
     plt.show()
 
 # 画出误差图像
-def plotError(datas):
+def plotError(datas, filepath=None):
     fig = plt.figure();
     ax = fig.add_subplot(111);
     x = range(len(datas));
     ax.plot(x, datas);
-    plt.show();
+    
+    if filepath is not None:
+        plt.savefig(filepath, format='png');
+    else:
+        plt.show();
 
 # sigmoid函数
 def sigmoid(x):
@@ -331,9 +415,10 @@ def cnntest(net, x, y):
     err = float(len(bad)) / m;
     return err, bad;
 
-def main(folder):
-    train_x = loadImages(root + 'train-images.idx3-ubyte');  # (60000, 28, 28)
-    train_y = loadLabels(root + 'train-labels.idx1-ubyte');  # (60000)
+# 生成模型
+def model_create(dataFolder, modelFile, errpngFile=None):
+    train_x = loadImages(dataFolder + 'train-images.idx3-ubyte');  # (60000, 28, 28)
+    train_y = loadLabels(dataFolder + 'train-labels.idx1-ubyte');  # (60000)
     
     alpha = 1;  # 学习率
     batchsize = 50;  # 每次挑出一个batchsize的batch来训练
@@ -341,19 +426,29 @@ def main(folder):
     
     cnn = CNNNet();
     cnn = cnninit(cnn, train_x, train_y);
-    cnn.exportModel('/home/hadoop/test');
+    cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
     
-#     cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
-#     
-#     test_x = loadImages(root + 't10k-images.idx3-ubyte');  # (10000, 28, 28)
-#     test_y = loadLabels(root + 't10k-labels.idx1-ubyte');  # (10000)
-#     
-#     err, bad = cnntest(cnn, test_x, test_y);
-#     print '正确率: ', (1 - err) * 100, '%';
-#     
-#     plotError(cnn.rL);
-    
+    cnn.exportModel(modelFile);
+    plotError(cnn.rL, errpngFile);
 
-root = '/home/hadoop/ProgramDatas/MNISTDataset/';
-# root = 'E:/TestDatas/MNISTDataset/';
-main(root);
+# 测试模型  
+def model_test(dataFolder, modelfile):
+    test_x = loadImages(dataFolder + 't10k-images.idx3-ubyte');  # (10000, 28, 28)
+    test_y = loadLabels(dataFolder + 't10k-labels.idx1-ubyte');  # (10000)
+    
+    cnn = CNNNet();
+    cnn.importModel(modelfile);
+    
+    err, bad = cnntest(cnn, test_x, test_y);
+    print '正确率: ', (1 - err) * 100, '%';
+
+def main():
+    # dataFolder = '/home/hadoop/ProgramDatas/MNISTDataset/';
+    dataFolder = 'E:/TestDatas/MNISTDataset/';
+    resultFolder = 'E:/TestDatas/MNIST/';
+    modelFile = resultFolder + 'model.txt';
+    errpngFile = resultFolder + 'error.png';
+#     model_create(dataFolder, modelFile, errpngFile);
+    model_test(dataFolder, modelFile);
+
+main();
