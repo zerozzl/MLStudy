@@ -27,7 +27,7 @@ class CNNNet:
         self.dffw = None;
         self.dffb = None;
         self.rL = None;
-    
+
     # 导出模型
     def exportModel(self, filepath):
         datas = [];
@@ -139,6 +139,22 @@ class CNNNet:
                     bdata = [float(x) for x in bdata.split('!')];
                     bdata = np.reshape(np.array(bdata), (bshape[0], bshape[1]));
                     self.ffb = np.array(bdata);
+    
+    # 画出隐含层
+    def exportHiddenLayerGraph(self, filepath):
+        for l in range(len(self.layers)):
+            lay = self.layers[l];
+            if lay['type'] == 'c':
+                kernels = lay['k'];
+                si, sj, sr, sc =  np.shape(kernels);
+                fig = plt.figure();
+                pos = 1;
+                for i in range(si):
+                    for j in range(sj):
+                        fig.add_subplot(si, sj, pos);
+                        plt.imshow(kernels[i][j] , cmap='gray');
+                        pos += 1;
+                plt.savefig(filepath + 'layer_' + str(l) + '.png', format='png');
 
 # 读取图片数据
 def loadImages(filepath, num=-1):
@@ -416,7 +432,7 @@ def cnntest(net, x, y):
     return err, bad;
 
 # 生成模型
-def model_create(dataFolder, modelFile, errpngFile=None):
+def model_create(dataFolder, resultFolder, modelFile, errpngFile=None):
     train_x = loadImages(dataFolder + 'train-images.idx3-ubyte');  # (60000, 28, 28)
     train_y = loadLabels(dataFolder + 'train-labels.idx1-ubyte');  # (60000)
     
@@ -429,6 +445,7 @@ def model_create(dataFolder, modelFile, errpngFile=None):
     cnn = cnntrain(cnn, train_x, train_y, alpha, batchsize, numepochs);
     
     cnn.exportModel(modelFile);
+    cnn.exportHiddenLayerGraph(resultFolder);
     plotError(cnn.rL, errpngFile);
 
 # 测试模型  
@@ -443,12 +460,13 @@ def model_test(dataFolder, modelfile):
     print '正确率: ', (1 - err) * 100, '%';
 
 def main():
-    # dataFolder = '/home/hadoop/ProgramDatas/MNISTDataset/';
-    dataFolder = 'E:/TestDatas/MNISTDataset/';
-    resultFolder = 'E:/TestDatas/MNIST/';
+    dataFolder = '/home/hadoop/ProgramDatas/MNISTDataset/';
+    resultFolder = '/home/hadoop/ProgramDatas/MLStudy/MNIST/';
+#     dataFolder = 'E:/TestDatas/MNISTDataset/';
+#     resultFolder = 'E:/TestDatas/MNIST/';
     modelFile = resultFolder + 'model.txt';
     errpngFile = resultFolder + 'error.png';
-#     model_create(dataFolder, modelFile, errpngFile);
+    model_create(dataFolder, resultFolder, modelFile, errpngFile);
     model_test(dataFolder, modelFile);
 
 main();
