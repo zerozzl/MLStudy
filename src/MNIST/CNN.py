@@ -460,10 +460,10 @@ def model_test(dataFolder, modelfile):
     print '正确率: ', (1 - err) * 100, '%';
 
 def main():
-    dataFolder = '/home/hadoop/ProgramDatas/MNISTDataset/';
-    resultFolder = '/home/hadoop/ProgramDatas/MLStudy/MNIST/';
-#     dataFolder = 'E:/TestDatas/MNISTDataset/';
-#     resultFolder = 'E:/TestDatas/MNIST/';
+#     dataFolder = '/home/hadoop/ProgramDatas/MNISTDataset/';
+#     resultFolder = '/home/hadoop/ProgramDatas/MLStudy/MNIST/';
+    dataFolder = 'E:/TestDatas/MNISTDataset/';
+    resultFolder = 'E:/TestDatas/MNIST/';
     modelFile = resultFolder + 'model.txt';
     errpngFile = resultFolder + 'error.png';
     model_create(dataFolder, resultFolder, modelFile, errpngFile);
