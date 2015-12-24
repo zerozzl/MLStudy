@@ -27,9 +27,9 @@ class CNNNet:
     def __init__(self, inputsize, outputsize):
         self.layers = [];
         self.layers.append(self.Layer(ty='i'));
-        self.layers.append(self.Layer(ty='c', opm=6, ks=5));
+        self.layers.append(self.Layer(ty='c', opm=2, ks=77));
         self.layers.append(self.Layer(ty='s', sc=2));
-        self.layers.append(self.Layer(ty='c', opm=12, ks=5));
+        self.layers.append(self.Layer(ty='c', opm=6, ks=5));
         self.layers.append(self.Layer(ty='s', sc=2));
         self.layers.append(self.Layer(ty='r'));
         self.layers.append(self.Layer(ty='o'));
@@ -107,8 +107,6 @@ class CNNNet:
     def backpropagation(self, out=None, ynum=None, exportGradAndCost=False):
         n = len(self.layers);
         y = np.zeros(self.outputsize);
-        
-        print ynum;
         
         if ynum is not None:
             y[ynum] = 1;
@@ -320,13 +318,10 @@ class CNNNet:
 # stochastic
 def cnntrain_stoc(datas, inputsize, outputsize, alpha, numepochs):
     rl = [];
-    m = datas.count();
+    m = np.shape(datas)[0];
+    cnn = CNNNet(inputsize, outputsize);
     for i in range(numepochs):
         start = clock();
-        
-        cnn = CNNNet(inputsize, outputsize);
-        datas = datas.collect();
-        
         for j in range(m):
             cnn.import_data(datas[j][0], datas[j][1]);
             cnn.feedforward();
@@ -340,7 +335,6 @@ def cnntrain_stoc(datas, inputsize, outputsize, alpha, numepochs):
         
         finish = clock();
         print '本次执行时间: ', (finish - start), '秒';
-    plotError(rl);
     return cnn, rl;
 
 # mini batch
@@ -371,11 +365,13 @@ def cnntrain_minibatch(datas, inputsize, outputsize, alpha, numepochs, batchsize
 
 # 测试结果
 def cnntest(cnn, testData):
-    m = testData.count();
-    err = testData.map(lambda line : (cnn.feedforward(line[0]), line[1])).map(
-                            lambda line : (np.sum(np.argmax(line[0], 1)), line[1])).map(
-                            lambda line : 0 if line[0] == line[1] else 1).filter(
-                            lambda line : line == 1).count();
+    m = np.shape(testData)[0];
+    err = 0;
+    for i in range(m):
+        pred = cnn.feedforward(testData[i][0]);
+        pred = np.sum(np.argmax(pred, 1));
+        if pred != testData[i][1]:
+            err += 1;
     err = float(err) / m;
     return err;
 
@@ -414,7 +410,7 @@ def kronecker(A, B):
 def plotDatas(datas):
     fig = plt.figure();
     fig.add_subplot(111);
-    plt.imshow(datas);
+    plt.imshow(datas, cmap="gray");
     plt.show();
 
 # 画出误差图像
@@ -443,7 +439,6 @@ def read_pgm(pgm):
     if(maxsample == 0):
         maxsample = int(header.split()[3]);
     pixels = np.fromfile(fr, count=width * height * samples, dtype='u1' if maxsample < 256 else '>u2');
-#     pixels = pixels.reshape(height, width) if samples == 1 else pixels.reshape(height, width, samples);
     return pixels, height, width;
 
 # 读取图片数据及
@@ -463,41 +458,41 @@ def loadDataSet(folder, filename):
         else:
             raise Exception('orientation not recognize!');
         
-        print np.shape(read_pgm(folder + line.strip())[0]);
-#         datas.append(read_pgm(folder + line.strip())[0]);
-#     datas = np.mat(datas) / 255.0;
-#     return datas;
+        datas.append((read_pgm(folder + line.strip())[0], labv));
+    return datas;
 
 # 生成模型
-def model_create(srcFolder, trainFile, inputsize, outputsize, alpha, numepochs):
+def model_create(srcFolder, trainFile, inputsize, outputsize, alpha, numepochs, modelFile, errPngFile):
     trainData = loadDataSet(srcFolder, trainFile);
-#     cnn, rl = cnntrain_stoc(trainData, inputsize, outputsize, alpha, numepochs);
+    cnn, rl = cnntrain_stoc(trainData, inputsize, outputsize, alpha, numepochs);
 #     cnn, rl = cnntrain_minibatch(trainData, inputsize, outputsize, alpha, numepochs, batchsize);
-#     cnn.exportModel(ModelFile);
-#     plotError(rl, ErrPngFile);
+    cnn.exportModel(modelFile);
+    plotError(rl, errPngFile);
     
-
-# # 测试模型  
-# def model_test(testData, ModelFile, inputsize, outputsize):
-#     cnn = CNNNet(inputsize, outputsize);
-#     cnn.importModel(ModelFile);
-#     err = cnntest(cnn, testData);
-#     print '正确率: ', (1 - err) * 100, '%';
+# 测试模型  
+def model_test(srcFolder, testFile, modelFile, inputsize, outputsize):
+    testData = loadDataSet(srcFolder, testFile);
+    cnn = CNNNet(inputsize, outputsize);
+    cnn.importModel(modelFile);
+    err = cnntest(cnn, testData);
+    print '正确率: ', (1 - err) * 100, '%';
 
 def main():
-    root = "E:/TestDatas/FaceOrientation/";
+#     root = "E:/TestDatas/FaceOrientation/";
+    root = "/home/hadoop/ProgramDatas/MLStudy/FaceRecognition/";
     trainFile = 'all_train.txt';
     testFile = 'all_test1.txt';
-#     resultFile = 'thetas.txt';
+    modelFile = root + 'model.txt';
+    errPngFile = root + 'error.png';
      
-    inputsize = [1, 30, 32];
+    inputsize = [1, 120, 128];
     outputsize = 4;
-    alpha = 1;
-    numepochs = 1;
+    alpha = 0.0001;
+    numepochs = 20;
 #     batchsize = 100;
 #     
-    model_create(root, trainFile, inputsize, outputsize, alpha, numepochs);
-#     model_test(SparkMaster, TestData, ModelFile, inputsize, outputsize);
+    model_create(root, trainFile, inputsize, outputsize, alpha, numepochs, modelFile, errPngFile);
+    model_test(root, testFile, modelFile, inputsize, outputsize);
  
 main();
 

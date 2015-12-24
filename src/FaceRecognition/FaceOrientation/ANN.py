@@ -25,7 +25,7 @@ def plot_pgm(pgm):
     img = np.mat(pgm);
     fig = plt.figure();
     fig.add_subplot(111);
-    plt.imshow(img , cmap="gray");
+    plt.imshow(img, cmap="gray");
     plt.show();
 
 # 读取图片数据及
@@ -218,9 +218,9 @@ def test(root, test_file, thetas_file, inputSize, hiddenSize, outputSize):
 
 
 root = "/home/hadoop/ProgramDatas/MLStudy/FaceRecognition/";
-trainFile = 'all_train.txt';
+trainFile = 'all_train_4.txt';
+testFile = 'all_test1_4.txt';
 resultFile = 'thetas.txt';
-testFile = 'all_test1.txt';
 inputSize = 960;
 hiddenSize = 10;
 outputSize = 4;
