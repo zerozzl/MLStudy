@@ -37,6 +37,11 @@ class IntegralImage:
         if angle == 0:
             return self.sat[x, y] + self.sat[x + h, y + w] - self.sat[x, y + w] - self.sat[x + h, y];
         elif angle == 45:
+            print self.rsat
+            print y, x + 1
+            print y + w + h, x - h + w + 1
+            print y + h, x - h + 1
+            print y + w, x + w + 1
             return self.rsat[y, x + 1] + self.rsat[y + w + h, x - h + w + 1] - self.rsat[y + h, x - h + 1] - self.rsat[y + w, x + w + 1];
 
 # Haar-Like特征
@@ -48,6 +53,22 @@ class HaarLikeFeature:
         self.w = w;
         self.h = h;
     
+    def getEigenvalue(self, intImg):
+        eigenvalue = 0;
+        print intImg.orig;
+#         print intImg.sat;
+        if self.type == '1a':
+            mid = self.w / 2;
+            negative = intImg.getAreaSum(self.top_left[0], self.top_left[1], mid, self.h);
+            positive = intImg.getAreaSum(self.top_left[0], self.top_left[1] + mid, mid, self.h);
+            eigenvalue = positive - negative;
+        elif self.type == '1b':
+            mid = self.h / 2;
+            negative = intImg.getAreaSum(self.top_left[0], self.top_left[1], self.w, mid);
+            positive = intImg.getAreaSum(self.top_left[0] + mid, self.top_left[1], self.w, mid);
+            eigenvalue = positive - negative;
+        print eigenvalue;
+  
 # 初始化特征模板
 def initFeaTemplates():
     # 具体特征模板形状，请参考论文: An Extended Set of Haar-like Features for Rapid Object Detection
@@ -68,6 +89,27 @@ def initFeaTemplates():
     templates.append(FeaTemplate('3b', 45, 3, 3));
     return templates;
 
+# 初始化特征
+def initFeatures(W, H, templates):
+    features = [];
+    for feaTemp in templates:
+        if feaTemp.ang == 0:
+            w = feaTemp.w;
+            h = feaTemp.h;
+        elif feaTemp.ang == 45:
+            w = h = feaTemp.w + feaTemp.h;
+        
+        X = int(W / w);
+        Y = int(H / h);
+        
+        for i in range(X):
+            for j in range(Y):
+                for y in range(H - (j + 1) * h + 1):
+                    for x in range(W - (i + 1) * w + 1):
+                        features.append(HaarLikeFeature(feaTemp.type, (y, x), (i + 1) * feaTemp.w, (j + 1) * feaTemp.h));
+
+    return features;
+
 # 获取Haar特征数量
 def getHaarCount(W, H, w, h, angle=0):
     if angle == 45:
@@ -76,41 +118,38 @@ def getHaarCount(W, H, w, h, angle=0):
     Y = int(H / h);
     return  X * Y * (W + 1 - w * (X + 1) / 2.0) * (H + 1 - h * (Y + 1) / 2.0);
 
-# 初始化特征
-def initFeatures(W, H, feaTemp):
-    if feaTemp.ang == 0:
-        w = feaTemp.w;
-        h = feaTemp.h;
-    elif feaTemp.ang == 45:
-        w = h = feaTemp.w + feaTemp.h;
-    
-    features = [];
-    X = int(W / w);
-    Y = int(H / h);
-    
-    for i in range(X):
-        for j in range(Y):
-            for y in range(H - (j + 1) * h + 1):
-                for x in range(W - (i + 1) * w + 1):
-                    features.append(HaarLikeFeature(feaTemp.type, (y, x), (i + 1) * feaTemp.w, (j + 1) * feaTemp.h));
-    return features;
+# 主函数
+def main():
+    templates = initFeaTemplates();
+    features = initFeatures(24, 24, templates);
+    print len(features);
+    for i in range(100):
+        print features[i].type, features[i].top_left, features[i].w, features[i].h;
 
-ft = FeaTemplate('1a', 45, 1, 3);
-feas =  initFeatures(24, 24, ft);
 
-ws = set();
-hs = set();
+im = IntegralImage([[1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10],
+                    [11, 12, 13, 14, 15],
+                    [16, 17, 18, 19, 20],
+                    [21, 22, 23, 24, 25]], 1);
+ 
+print im.getAreaSum(0, 0, 2, 2, 45);
+# haarlike = HaarLikeFeature('1b', (0, 0), 2, 2);
+# haarlike.getEigenvalue(im);
 
-print len(feas);
-for i in range(len(feas)):
-    fe = feas[i];
-    ws.add(fe.w);
-    hs.add(fe.h);
-#     if i < 100:
+# ws = set();
+# hs = set();
+# 
+# print len(feas);
+# for i in range(len(feas)):
+#     fe = feas[i];
+#     ws.add(fe.w);
+#     hs.add(fe.h);
+#     if i < 1000:
 #         print 'pos: ', fe.top_left, ', width: ', fe.w, 'height: ', fe.h;
-
-print ws;
-print hs;
+# 
+# print ws;
+# print hs;
 
 # im = IntegralImage([[1, 2, 3],
 #             [4, 5, 6],
