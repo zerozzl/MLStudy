@@ -35,13 +35,8 @@ class IntegralImage:
     # 获取举行图像积分和
     def getAreaSum(self, x, y, w, h, angle=0):
         if angle == 0:
-            return self.sat[x, y] + self.sat[x + h, y + w] - self.sat[x, y + w] - self.sat[x + h, y];
+            return self.sat[y, x] + self.sat[y + h, x + w] - self.sat[y, x + w] - self.sat[y + h, x];
         elif angle == 45:
-            print self.rsat
-            print y, x + 1
-            print y + w + h, x - h + w + 1
-            print y + h, x - h + 1
-            print y + w, x + w + 1
             return self.rsat[y, x + 1] + self.rsat[y + w + h, x - h + w + 1] - self.rsat[y + h, x - h + 1] - self.rsat[y + w, x + w + 1];
 
 # Haar-Like特征
@@ -55,20 +50,32 @@ class HaarLikeFeature:
     
     def getEigenvalue(self, intImg):
         eigenvalue = 0;
-        print intImg.orig;
-#         print intImg.sat;
         if self.type == '1a':
             mid = self.w / 2;
-            negative = intImg.getAreaSum(self.top_left[0], self.top_left[1], mid, self.h);
-            positive = intImg.getAreaSum(self.top_left[0], self.top_left[1] + mid, mid, self.h);
+            negative = intImg.getAreaSum(self.top_left[1], self.top_left[0], mid, self.h);
+            positive = intImg.getAreaSum(self.top_left[1] + mid, self.top_left[0], mid, self.h);
             eigenvalue = positive - negative;
+            print 'neg: ', negative;
+            print 'pos: ', positive;
         elif self.type == '1b':
             mid = self.h / 2;
             negative = intImg.getAreaSum(self.top_left[0], self.top_left[1], self.w, mid);
             positive = intImg.getAreaSum(self.top_left[0] + mid, self.top_left[1], self.w, mid);
             eigenvalue = positive - negative;
         print eigenvalue;
-  
+
+im = IntegralImage([[1, 2, 3, 4, 5],
+                    [6, 7, 8, 9, 10],
+                    [11, 12, 13, 14, 15],
+                    [16, 17, 18, 19, 20],
+                    [21, 22, 23, 24, 25]], 1);
+print im.orig;
+# print im.sat;
+# print im.rsat;
+# print im.getAreaSum(0, 1, 1, 2, 0);
+haarlike = HaarLikeFeature('1a', (0, 0), 2, 2);
+haarlike.getEigenvalue(im);
+
 # 初始化特征模板
 def initFeaTemplates():
     # 具体特征模板形状，请参考论文: An Extended Set of Haar-like Features for Rapid Object Detection
@@ -127,13 +134,16 @@ def main():
         print features[i].type, features[i].top_left, features[i].w, features[i].h;
 
 
-im = IntegralImage([[1, 2, 3, 4, 5],
-                    [6, 7, 8, 9, 10],
-                    [11, 12, 13, 14, 15],
-                    [16, 17, 18, 19, 20],
-                    [21, 22, 23, 24, 25]], 1);
- 
-print im.getAreaSum(0, 0, 2, 2, 45);
+# im = IntegralImage([[1, 2, 3, 4, 5],
+#                     [6, 7, 8, 9, 10],
+#                     [11, 12, 13, 14, 15],
+#                     [16, 17, 18, 19, 20],
+#                     [21, 22, 23, 24, 25]], 1);
+
+# print im.orig;
+# print im.sat;
+# print im.rsat;
+# print im.getAreaSum(0, 1, 1, 2, 0);
 # haarlike = HaarLikeFeature('1b', (0, 0), 2, 2);
 # haarlike.getEigenvalue(im);
 
