@@ -37,25 +37,12 @@ class IntegralImage:
         if angle == 0:
             return self.sat[y, x] + self.sat[y + h, x + w] - self.sat[y, x + w] - self.sat[y + h, x];
         elif angle == 45:
-            print y, x + 1;
-            print y + w + h, x - h + w + 1;
-            print y + h, x - h + 1;
-            print y + w, x + w + 1;
+#             print y, x + 1;
+#             print y + w + h, x - h + w + 1;
+#             print y + h, x - h + 1;
+#             print y + w, x + w + 1;
             
             return self.rsat[y, x + 1] + self.rsat[y + w + h, x - h + w + 1] - self.rsat[y + h, x - h + 1] - self.rsat[y + w, x + w + 1];
-
-im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
-                    [8, 9, 10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19, 20, 21],
-                    [22, 23, 24, 25, 26, 27, 28],
-                    [29, 30, 31, 32, 33, 34, 35],
-                    [36, 37, 38, 39, 40, 41, 42],
-                    [43, 44, 45, 46, 47, 48, 49]], 1);
-print im.orig;
-# print im.sat;
-# print im.rsat;
-print im.getAreaSum(2, 0, 4, 2, 45);
-
 
 # Haar-Like特征
 class HaarLikeFeature:
@@ -79,9 +66,15 @@ class HaarLikeFeature:
             positive = intImg.getAreaSum(self.top_left[1], self.top_left[0] + part, self.w, part);
             eigenvalue = positive - negative;
         elif self.type == '1c':
-            pass;
+            part = self.w / 2;
+            negative = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], part, self.h, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + self.h + part, self.top_left[0] + part, part, self.h, 45);
+            eigenvalue = positive - negative;
         elif self.type == '1d':
-            pass;
+            part = self.h / 2;
+            positive = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, part, 45);
+            negative = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + part, self.w, part, 45);
+            eigenvalue = positive - negative;
         elif self.type == '2a':
             part = self.w / 3;
             negative1 = intImg.getAreaSum(self.top_left[1], self.top_left[0], part, self.h);
@@ -107,6 +100,8 @@ class HaarLikeFeature:
             negative2 = intImg.getAreaSum(self.top_left[1], self.top_left[0] + 3 * part, self.w, part);
             eigenvalue = positive - negative1 - negative2;
         elif self.type == '2e':
+#             print positive;
+#             print negative;
             pass;
         elif self.type == '2f':
             pass;
@@ -183,33 +178,20 @@ def main():
         print features[i].type, features[i].top_left, features[i].w, features[i].h;
 
 
-# im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
-#                     [6, 7, 8, 9, 10, 11, 12],
-#                     [11, 12, 13, 14, 15, 16, 17],
-#                     [16, 17, 18, 19, 20, 21, 22],
-#                     [21, 22, 23, 24, 25, 26, 27],
-#                     [28, 29, 30, 31, 32, 33, 34],
-#                     [35, 36, 37, 38, 39, 40, 41]], 1);
-# print im.orig;
+im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
+                    [8, 9, 10, 11, 12, 13, 14],
+                    [15, 16, 17, 18, 19, 20, 21],
+                    [22, 23, 24, 25, 26, 27, 28],
+                    [29, 30, 31, 32, 33, 34, 35],
+                    [36, 37, 38, 39, 40, 41, 42],
+                    [43, 44, 45, 46, 47, 48, 49]], 1);
+print im.orig;
 # # print im.sat;
 # # print im.rsat;
-# print im.getAreaSum(1, 0, 2, 1, 45);
-# haarlike = HaarLikeFeature('3a', (0, 1), 3, 3);
-# eigenvalue = haarlike.getEigenvalue(im);
-# print eigenvalue;
-
-# im = IntegralImage([[1, 2, 3, 4, 5],
-#                     [6, 7, 8, 9, 10],
-#                     [11, 12, 13, 14, 15],
-#                     [16, 17, 18, 19, 20],
-#                     [21, 22, 23, 24, 25]], 1);
-
-# print im.orig;
-# print im.sat;
-# print im.rsat;
-# print im.getAreaSum(0, 1, 1, 2, 0);
-# haarlike = HaarLikeFeature('1b', (0, 0), 2, 2);
-# haarlike.getEigenvalue(im);
+# print im.getAreaSum(6, 0, 1, 6, 45);
+haarlike = HaarLikeFeature('1d', (0, 0), 1, 6);
+eigenvalue = haarlike.getEigenvalue(im);
+print eigenvalue;
 
 # ws = set();
 # hs = set();
@@ -224,21 +206,6 @@ def main():
 # 
 # print ws;
 # print hs;
-
-# im = IntegralImage([[1, 2, 3],
-#             [4, 5, 6],
-#             [7, 8, 9]], 1);
-# im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
-#             [11, 12, 13, 14, 15, 16, 17],
-#             [21, 22, 23, 24, 25, 26, 27],
-#             [31, 32, 33, 34, 35, 36, 37],
-#             [41, 42, 43, 44, 45, 46, 47],
-#             [51, 52, 53, 54, 55, 56, 57],
-#             [61, 62, 63, 64, 65, 66, 67]], 1);
-# print im.orig;
-# print im.sat;
-# print im.rsat;
-# print im.getAreaSum(2, 2, 2, 2, 45);
 
 # temps = initFeaTemplates();
 # sum = 0;
