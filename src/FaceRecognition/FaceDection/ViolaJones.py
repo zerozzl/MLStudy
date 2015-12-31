@@ -37,11 +37,6 @@ class IntegralImage:
         if angle == 0:
             return self.sat[y, x] + self.sat[y + h, x + w] - self.sat[y, x + w] - self.sat[y + h, x];
         elif angle == 45:
-#             print y, x + 1;
-#             print y + w + h, x - h + w + 1;
-#             print y + h, x - h + 1;
-#             print y + w, x + w + 1;
-            
             return self.rsat[y, x + 1] + self.rsat[y + w + h, x - h + w + 1] - self.rsat[y + h, x - h + 1] - self.rsat[y + w, x + w + 1];
 
 # Haar-Like特征
@@ -72,8 +67,8 @@ class HaarLikeFeature:
             eigenvalue = positive - negative;
         elif self.type == '1d':
             part = self.h / 2;
-            positive = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, part, 45);
-            negative = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + part, self.w, part, 45);
+            negative = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, part, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + part, self.w, part, 45);
             eigenvalue = positive - negative;
         elif self.type == '2a':
             part = self.w / 3;
@@ -100,23 +95,39 @@ class HaarLikeFeature:
             negative2 = intImg.getAreaSum(self.top_left[1], self.top_left[0] + 3 * part, self.w, part);
             eigenvalue = positive - negative1 - negative2;
         elif self.type == '2e':
-#             print positive;
-#             print negative;
-            pass;
+            part = self.w / 3;
+            negative1 = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], part, self.h, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + self.h + part, self.top_left[0] + part, part, self.h, 45);
+            negative2 = intImg.getAreaSum(self.top_left[1] + self.h + 2 * part, self.top_left[0] + 2 * part, part, self.h, 45);
+            eigenvalue = positive - negative1 - negative2;
         elif self.type == '2f':
-            pass;
+            part = self.w / 4;
+            negative1 = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], part, self.h, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + self.h + part, self.top_left[0] + part, 2 * part, self.h, 45);
+            negative2 = intImg.getAreaSum(self.top_left[1] + self.h + 3 * part, self.top_left[0] + 3 * part, part, self.h, 45);
+            eigenvalue = positive - negative1 - negative2;
         elif self.type == '2g':
-            pass;
+            part = self.h / 3;
+            negative1 = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, part, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + 2 * part, self.top_left[0] + part, self.w, part, 45);
+            negative2 = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + 2 * part, self.w, part, 45);
+            eigenvalue = positive - negative1 - negative2;
         elif self.type == '2h':
-            pass;
+            part = self.h / 4;
+            negative1 = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, part, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + 3 * part, self.top_left[0] + part, self.w, 2 * part, 45);
+            negative2 = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + 3 * part, self.w, part, 45);
+            eigenvalue = positive - negative1 - negative2;
         elif self.type == '3a':
-            partw = self.w / 3;
-            parth = self.h / 3;
+            part = self.w / 3;
             whole = intImg.getAreaSum(self.top_left[1], self.top_left[0], self.w, self.h);
-            positive = intImg.getAreaSum(self.top_left[1] + partw, self.top_left[0] + parth, partw, parth);
+            positive = intImg.getAreaSum(self.top_left[1] + part, self.top_left[0] + part, part, part);
             eigenvalue = 2 * positive - whole;
         elif self.type == '3b':
-            pass;
+            part = self.w / 3;
+            whole = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0], self.w, self.h, 45);
+            positive = intImg.getAreaSum(self.top_left[1] + self.h, self.top_left[0] + 2 * part, part, part, 45);
+            eigenvalue = 2 * positive - whole;
         
         return eigenvalue;
 
@@ -129,12 +140,12 @@ def initFeaTemplates():
     templates.append(FeaTemplate('1c', 45, 2, 1));
     templates.append(FeaTemplate('1d', 45, 1, 2));
     templates.append(FeaTemplate('2a', 0, 3, 1));
-    templates.append(FeaTemplate('2c', 0, 1, 3));
     templates.append(FeaTemplate('2b', 0, 4, 1));
+    templates.append(FeaTemplate('2c', 0, 1, 3));
     templates.append(FeaTemplate('2d', 0, 1, 4));
     templates.append(FeaTemplate('2e', 45, 3, 1));
-    templates.append(FeaTemplate('2g', 45, 1, 3));
     templates.append(FeaTemplate('2f', 45, 4, 1));
+    templates.append(FeaTemplate('2g', 45, 1, 3));
     templates.append(FeaTemplate('2h', 45, 1, 4));
     templates.append(FeaTemplate('3a', 0, 3, 3));
     templates.append(FeaTemplate('3b', 45, 3, 3));
@@ -161,13 +172,13 @@ def initFeatures(W, H, templates):
 
     return features;
 
-# 获取Haar特征数量
-def getHaarCount(W, H, w, h, angle=0):
-    if angle == 45:
-        w = h = w + h;
-    X = int(W / w);
-    Y = int(H / h);
-    return  X * Y * (W + 1 - w * (X + 1) / 2.0) * (H + 1 - h * (Y + 1) / 2.0);
+# # 获取Haar特征数量
+# def getHaarCount(W, H, w, h, angle=0):
+#     if angle == 45:
+#         w = h = w + h;
+#     X = int(W / w);
+#     Y = int(H / h);
+#     return  X * Y * (W + 1 - w * (X + 1) / 2.0) * (H + 1 - h * (Y + 1) / 2.0);
 
 # 主函数
 def main():
@@ -178,20 +189,20 @@ def main():
         print features[i].type, features[i].top_left, features[i].w, features[i].h;
 
 
-im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
-                    [8, 9, 10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19, 20, 21],
-                    [22, 23, 24, 25, 26, 27, 28],
-                    [29, 30, 31, 32, 33, 34, 35],
-                    [36, 37, 38, 39, 40, 41, 42],
-                    [43, 44, 45, 46, 47, 48, 49]], 1);
-print im.orig;
+# im = IntegralImage([[1, 2, 3, 4, 5, 6, 7],
+#                     [8, 9, 10, 11, 12, 13, 14],
+#                     [15, 16, 17, 18, 19, 20, 21],
+#                     [22, 23, 24, 25, 26, 27, 28],
+#                     [29, 30, 31, 32, 33, 34, 35],
+#                     [36, 37, 38, 39, 40, 41, 42],
+#                     [43, 44, 45, 46, 47, 48, 49]], 1);
+# print im.orig;
 # # print im.sat;
 # # print im.rsat;
-# print im.getAreaSum(6, 0, 1, 6, 45);
-haarlike = HaarLikeFeature('1d', (0, 0), 1, 6);
-eigenvalue = haarlike.getEigenvalue(im);
-print eigenvalue;
+# print im.getAreaSum(3, 0, 3, 3, 45);
+# haarlike = HaarLikeFeature('3a', (0, 0), 3, 3);
+# eigenvalue = haarlike.getEigenvalue(im);
+# print eigenvalue;
 
 # ws = set();
 # hs = set();
