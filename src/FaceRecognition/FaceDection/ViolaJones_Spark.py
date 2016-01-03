@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 import operator
+from pyspark import SparkConf
+from pyspark import SparkContext
 
 # 特征模板
 class FeaTemplate:
@@ -56,91 +58,6 @@ class HaarLikeFeature:
         self.p = 1.0;
         self.err = 0.0;
     
-    def getEigenvalue(self, intImg):
-        eigenvalue = 0;
-        if self.type == '1a':
-            part = self.w / 2;
-            negative = intImg.getAreaSum(self.pos[1], self.pos[0], part, self.h);
-            positive = intImg.getAreaSum(self.pos[1] + part, self.pos[0], part, self.h);
-            eigenvalue = positive - negative;
-        elif self.type == '1b':
-            part = self.h / 2;
-            negative = intImg.getAreaSum(self.pos[1], self.pos[0], self.w, part);
-            positive = intImg.getAreaSum(self.pos[1], self.pos[0] + part, self.w, part);
-            eigenvalue = positive - negative;
-        elif self.type == '1c':
-            part = self.w / 2;
-            negative = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], part, self.h, 45);
-            positive = intImg.getAreaSum(self.pos[1] + self.h + part, self.pos[0] + part, part, self.h, 45);
-            eigenvalue = positive - negative;
-        elif self.type == '1d':
-            part = self.h / 2;
-            negative = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], self.w, part, 45);
-            positive = intImg.getAreaSum(self.pos[1] + part, self.pos[0] + part, self.w, part, 45);
-            eigenvalue = positive - negative;
-        elif self.type == '2a':
-            part = self.w / 3;
-            negative1 = intImg.getAreaSum(self.pos[1], self.pos[0], part, self.h);
-            positive = intImg.getAreaSum(self.pos[1] + part, self.pos[0], part, self.h);
-            negative2 = intImg.getAreaSum(self.pos[1] + 2 * part, self.pos[0], part, self.h);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2b':
-            part = self.w / 4;
-            negative1 = intImg.getAreaSum(self.pos[1], self.pos[0], part, self.h);
-            positive = intImg.getAreaSum(self.pos[1] + part, self.pos[0], 2 * part, self.h);
-            negative2 = intImg.getAreaSum(self.pos[1] + 3 * part, self.pos[0], part, self.h);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2c':
-            part = self.h / 3;
-            negative1 = intImg.getAreaSum(self.pos[1], self.pos[0], self.w, part);
-            positive = intImg.getAreaSum(self.pos[1], self.pos[0] + part, self.w, part);
-            negative2 = intImg.getAreaSum(self.pos[1], self.pos[0] + 2 * part, self.w, part);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2d':
-            part = self.h / 4;
-            negative1 = intImg.getAreaSum(self.pos[1], self.pos[0], self.w, part);
-            positive = intImg.getAreaSum(self.pos[1], self.pos[0] + part, self.w, 2 * part);
-            negative2 = intImg.getAreaSum(self.pos[1], self.pos[0] + 3 * part, self.w, part);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2e':
-            part = self.w / 3;
-            negative1 = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], part, self.h, 45);
-            positive = intImg.getAreaSum(self.pos[1] + self.h + part, self.pos[0] + part, part, self.h, 45);
-            negative2 = intImg.getAreaSum(self.pos[1] + self.h + 2 * part, self.pos[0] + 2 * part, part, self.h, 45);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2f':
-            part = self.w / 4;
-            negative1 = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], part, self.h, 45);
-            positive = intImg.getAreaSum(self.pos[1] + self.h + part, self.pos[0] + part, 2 * part, self.h, 45);
-            negative2 = intImg.getAreaSum(self.pos[1] + self.h + 3 * part, self.pos[0] + 3 * part, part, self.h, 45);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2g':
-            part = self.h / 3;
-            negative1 = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], self.w, part, 45);
-            positive = intImg.getAreaSum(self.pos[1] + 2 * part, self.pos[0] + part, self.w, part, 45);
-            negative2 = intImg.getAreaSum(self.pos[1] + part, self.pos[0] + 2 * part, self.w, part, 45);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '2h':
-            part = self.h / 4;
-            negative1 = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], self.w, part, 45);
-            positive = intImg.getAreaSum(self.pos[1] + 3 * part, self.pos[0] + part, self.w, 2 * part, 45);
-            negative2 = intImg.getAreaSum(self.pos[1] + part, self.pos[0] + 3 * part, self.w, part, 45);
-            eigenvalue = positive - negative1 - negative2;
-        elif self.type == '3a':
-            partw = self.w / 3;
-            parth = self.h / 3;
-            whole = intImg.getAreaSum(self.pos[1], self.pos[0], self.w, self.h);
-            positive = intImg.getAreaSum(self.pos[1] + partw, self.pos[0] + parth, partw, parth);
-            eigenvalue = 2 * positive - whole;
-        elif self.type == '3b':
-            partw = self.w / 3;
-            parth = self.h / 3;
-            whole = intImg.getAreaSum(self.pos[1] + self.h, self.pos[0], self.w, self.h, 45);
-            positive = intImg.getAreaSum(self.pos[1] + partw + 2 * parth, self.pos[0] + partw + parth, partw, parth, 45);
-            eigenvalue = 2 * positive - whole;
-        
-        return eigenvalue;
-    
     # 投票
     def getVote(self, intImg):
         score = self.getEigenvalue(intImg);
@@ -152,6 +69,91 @@ class HaarLikeFeature:
     def toString(self):
         return 'type:' + self.type + '|pos:' + str(self.pos) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p);
 
+def getEigenvalue(fType, fPos, w, h, intImg):
+    eigenvalue = 0;
+    if fType == '1a':
+        part = w / 2;
+        negative = intImg.getAreaSum(fPos[1], fPos[0], part, h);
+        positive = intImg.getAreaSum(fPos[1] + part, fPos[0], part, h);
+        eigenvalue = positive - negative;
+    elif fType == '1b':
+        part = h / 2;
+        negative = intImg.getAreaSum(fPos[1], fPos[0], w, part);
+        positive = intImg.getAreaSum(fPos[1], fPos[0] + part, w, part);
+        eigenvalue = positive - negative;
+    elif fType == '1c':
+        part = w / 2;
+        negative = intImg.getAreaSum(fPos[1] + h, fPos[0], part, h, 45);
+        positive = intImg.getAreaSum(fPos[1] + h + part, fPos[0] + part, part, h, 45);
+        eigenvalue = positive - negative;
+    elif fType == '1d':
+        part = h / 2;
+        negative = intImg.getAreaSum(fPos[1] + h, fPos[0], w, part, 45);
+        positive = intImg.getAreaSum(fPos[1] + part, fPos[0] + part, w, part, 45);
+        eigenvalue = positive - negative;
+    elif fType == '2a':
+        part = w / 3;
+        negative1 = intImg.getAreaSum(fPos[1], fPos[0], part, h);
+        positive = intImg.getAreaSum(fPos[1] + part, fPos[0], part, h);
+        negative2 = intImg.getAreaSum(fPos[1] + 2 * part, fPos[0], part, h);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2b':
+        part = w / 4;
+        negative1 = intImg.getAreaSum(fPos[1], fPos[0], part, h);
+        positive = intImg.getAreaSum(fPos[1] + part, fPos[0], 2 * part, h);
+        negative2 = intImg.getAreaSum(fPos[1] + 3 * part, fPos[0], part, h);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2c':
+        part = h / 3;
+        negative1 = intImg.getAreaSum(fPos[1], fPos[0], w, part);
+        positive = intImg.getAreaSum(fPos[1], fPos[0] + part, w, part);
+        negative2 = intImg.getAreaSum(fPos[1], fPos[0] + 2 * part, w, part);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2d':
+        part = h / 4;
+        negative1 = intImg.getAreaSum(fPos[1], fPos[0], w, part);
+        positive = intImg.getAreaSum(fPos[1], fPos[0] + part, w, 2 * part);
+        negative2 = intImg.getAreaSum(fPos[1], fPos[0] + 3 * part, w, part);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2e':
+        part = w / 3;
+        negative1 = intImg.getAreaSum(fPos[1] + h, fPos[0], part, h, 45);
+        positive = intImg.getAreaSum(fPos[1] + h + part, fPos[0] + part, part, h, 45);
+        negative2 = intImg.getAreaSum(fPos[1] + h + 2 * part, fPos[0] + 2 * part, part, h, 45);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2f':
+        part = w / 4;
+        negative1 = intImg.getAreaSum(fPos[1] + h, fPos[0], part, h, 45);
+        positive = intImg.getAreaSum(fPos[1] + h + part, fPos[0] + part, 2 * part, h, 45);
+        negative2 = intImg.getAreaSum(fPos[1] + h + 3 * part, fPos[0] + 3 * part, part, h, 45);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2g':
+        part = h / 3;
+        negative1 = intImg.getAreaSum(fPos[1] + h, fPos[0], w, part, 45);
+        positive = intImg.getAreaSum(fPos[1] + 2 * part, fPos[0] + part, w, part, 45);
+        negative2 = intImg.getAreaSum(fPos[1] + part, fPos[0] + 2 * part, w, part, 45);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '2h':
+        part = h / 4;
+        negative1 = intImg.getAreaSum(fPos[1] + h, fPos[0], w, part, 45);
+        positive = intImg.getAreaSum(fPos[1] + 3 * part, fPos[0] + part, w, 2 * part, 45);
+        negative2 = intImg.getAreaSum(fPos[1] + part, fPos[0] + 3 * part, w, part, 45);
+        eigenvalue = positive - negative1 - negative2;
+    elif fType == '3a':
+        partw = w / 3;
+        parth = h / 3;
+        whole = intImg.getAreaSum(fPos[1], fPos[0], w, h);
+        positive = intImg.getAreaSum(fPos[1] + partw, fPos[0] + parth, partw, parth);
+        eigenvalue = 2 * positive - whole;
+    elif fType == '3b':
+        partw = w / 3;
+        parth = h / 3;
+        whole = intImg.getAreaSum(fPos[1] + h, fPos[0], w, h, 45);
+        positive = intImg.getAreaSum(fPos[1] + partw + 2 * parth, fPos[0] + partw + parth, partw, parth, 45);
+        eigenvalue = 2 * positive - whole;
+    
+    return eigenvalue;
+    
 # 初始化特征模板
 def initFeaTemplates():
     # 具体特征模板形状，请参考论文: An Extended Set of Haar-like Features for Rapid Object Detection
@@ -248,56 +250,32 @@ class AdaBoost:
         self.datas = datas;
         self.features = features;
     
-    def train(self):
-        T = 10;
+    def train(self, SparkMaster):
+        conf = SparkConf().setAppName('MNIST CNN Test').setMaster(SparkMaster);
+        sc = SparkContext(conf=conf);
+    
+        T = 1;
         choose = {};
         for i in range(T):
             print 'training classifer ', i, ' / ', T;
+            feas = [];
+            for fea in self.features:
+                feas.append([fea.type, fea.pos, fea.w, fea.h]);
+            feas = sc.parallelize(feas, 3);
+            feas = feas.map(lambda line : trainWeakClassifier(line[0], line[1], line[2], line[3], self.datas));
+            
+            items = feas.collect();
+            print len(items);
+            print items[0];
+        
             self.trainWeakClassifier();
             pickFea = self.pickWeakClassifier();
             alpha = 0.5 * np.log((1.0 - (pickFea.err + 0.0001)) / (pickFea.err + 0.0001));
             choose[pickFea] = alpha;
             self.updateSamplesWeight(pickFea, alpha);
+        
+        sc.stop();
         return choose;
-            
-    # 训练弱分类器
-    def trainWeakClassifier(self):
-        for fea in self.features:
-            stable = [];
-            wpos = 0;
-            wneg = 0;
-            for data in self.datas:
-                stable.append([fea.getEigenvalue(data), data.label, data.weight]);
-                if data.label == 1:
-                    wpos += data.weight;
-                else:
-                    wneg += data.weight;
-            
-            sortedScore = sorted(stable, key=operator.itemgetter(0));
-            spos = 0;
-            sneg = 0;
-            bestSplit = 0;
-            bestErr = 1;
-            polarity = 1;
-            
-            for item in sortedScore:
-                err = min((spos + wneg - sneg), (sneg + wpos - spos));
-                if err < bestErr:
-                    bestErr = err;
-                    bestSplit = item[0];
-                    if (spos + wneg - sneg) < (sneg + wpos - spos):
-                        polarity = -1;
-                    else:
-                        polarity = 1;
-                
-                if item[1] == 1:
-                    spos += item[2];
-                else:
-                    sneg += item[2];
-            
-            fea.theta = bestSplit;
-            fea.err = bestErr;
-            fea.p = polarity;
     
     # 选择弱分类器
     def pickWeakClassifier(self):
@@ -325,6 +303,42 @@ class AdaBoost:
             else:
                 data.weight = data.weight * np.exp(alpha) / z;
 
+# 训练弱分类器
+def trainWeakClassifier(fType, fPos, w, h, datas):
+    stable = [];
+    wpos = 0;
+    wneg = 0;
+    for data in datas:
+        stable.append([getEigenvalue(fType, fPos, w, h, data), data.label, data.weight]);
+        if data.label == 1:
+            wpos += data.weight;
+        else:
+            wneg += data.weight;
+     
+    sortedScore = sorted(stable, key=operator.itemgetter(0));
+    spos = 0;
+    sneg = 0;
+    bestSplit = 0;
+    bestErr = 1;
+    polarity = 1;
+     
+    for item in sortedScore:
+        err = min((spos + wneg - sneg), (sneg + wpos - spos));
+        if err < bestErr:
+            bestErr = err;
+            bestSplit = item[0];
+            if (spos + wneg - sneg) < (sneg + wpos - spos):
+                polarity = -1;
+            else:
+                polarity = 1;
+         
+        if item[1] == 1:
+            spos += item[2];
+        else:
+            sneg += item[2];
+     
+    return bestSplit, bestErr, polarity;
+
 # 导出模型
 def exportClassifier(filepath, classifiers):
     fileHandler = open(filepath, "w");
@@ -336,6 +350,9 @@ def exportClassifier(filepath, classifiers):
 def main():
     DEBUG = False;
     imgSize = 24;
+    os.environ['SPARK_HOME'] = '/apps/spark/spark-1.4.1-bin-hadoop2.6';
+    SparkMaster = 'spark://localhost:7077';
+    
     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
     modelFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/model.txt';
     
@@ -345,7 +362,7 @@ def main():
     trainDatas = loadFaceDataSet(mitSrc, imgSize, DEBUG);
        
     adaBoost = AdaBoost(trainDatas, features);
-    classifiers = adaBoost.train();
+    classifiers = adaBoost.train(SparkMaster);
     
     exportClassifier(modelFile, classifiers);
 
