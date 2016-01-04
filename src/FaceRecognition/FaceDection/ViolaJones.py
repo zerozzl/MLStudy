@@ -247,53 +247,72 @@ class AdaBoost:
     def __init__(self, datas, features):
         self.datas = datas;
         self.features = features;
+        self.scoreMap = self.calcScoreTable();
     
     def train(self):
-        T = 10;
+        T = 200;
         choose = {};
         for i in range(T):
-            print 'training classifer ', i, ' / ', T;
+            print 'training classifer ', i + 1, ' / ', T;
             self.trainWeakClassifier();
             pickFea = self.pickWeakClassifier();
             alpha = 0.5 * np.log((1.0 - (pickFea.err + 0.0001)) / (pickFea.err + 0.0001));
             choose[pickFea] = alpha;
             self.updateSamplesWeight(pickFea, alpha);
         return choose;
+    
+    # 计算每个特征上，每张图片的得分
+    def calcScoreTable(self):
+        print 'calculating score table...';
+        scoreMap = {};
+        fi = 1;
+        for fea in self.features:
+            print 'calculating score table of feature ', fi;
+            fi += 1;
             
+            ftable = [];
+            for i in range(len(self.datas)):
+                data = self.datas[i];
+                ftable.append([i, fea.getEigenvalue(data)]);
+            
+            ftable = sorted(ftable, key=operator.itemgetter(1));
+            scoreMap[fea] = ftable;
+        
+        return scoreMap;
+    
     # 训练弱分类器
     def trainWeakClassifier(self):
         for fea in self.features:
-            stable = [];
             wpos = 0;
             wneg = 0;
             for data in self.datas:
-                stable.append([fea.getEigenvalue(data), data.label, data.weight]);
                 if data.label == 1:
                     wpos += data.weight;
                 else:
                     wneg += data.weight;
             
-            sortedScore = sorted(stable, key=operator.itemgetter(0));
             spos = 0;
             sneg = 0;
             bestSplit = 0;
             bestErr = 1;
             polarity = 1;
             
+            sortedScore = self.scoreMap[fea];
             for item in sortedScore:
                 err = min((spos + wneg - sneg), (sneg + wpos - spos));
                 if err < bestErr:
                     bestErr = err;
-                    bestSplit = item[0];
+                    bestSplit = item[1];
                     if (spos + wneg - sneg) < (sneg + wpos - spos):
                         polarity = -1;
                     else:
                         polarity = 1;
                 
-                if item[1] == 1:
-                    spos += item[2];
+                data = self.datas[item[0]];
+                if data.label == 1:
+                    spos += data.weight;
                 else:
-                    sneg += item[2];
+                    sneg += data.weight;
             
             fea.theta = bestSplit;
             fea.err = bestErr;
@@ -334,10 +353,12 @@ def exportClassifier(filepath, classifiers):
    
 # 主函数
 def main():
-    DEBUG = False;
+    DEBUG = True;
     imgSize = 24;
-    mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
-    modelFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/model.txt';
+#     root = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/';
+    root = 'E:/TestDatas/MLStudy/FaceDection/';
+    mitSrc = root + 'MIT/';
+    modelFile = root + 'model.txt';
     
     templates = initFeaTemplates();
     features = initFeatures(imgSize, imgSize, templates);
@@ -347,6 +368,7 @@ def main():
     adaBoost = AdaBoost(trainDatas, features);
     classifiers = adaBoost.train();
     
+    print 'exporting model...';
     exportClassifier(modelFile, classifiers);
 
 main();
