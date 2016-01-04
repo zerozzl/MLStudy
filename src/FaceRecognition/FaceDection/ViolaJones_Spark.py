@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+import ImageDraw
 import os
 import operator
 from pyspark import SparkConf
@@ -60,14 +61,14 @@ class HaarLikeFeature:
     
     # 投票
     def getVote(self, intImg):
-        score = self.getEigenvalue(intImg);
+        score = getEigenvalue(self.type, self.pos, self.w, self.h, intImg);
         if self.p * score <= self.p * self.theta:
             return 1;
         else:
             return 0;
     
     def toString(self):
-        return 'type:' + self.type + '|pos:' + str(self.pos) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p);
+        return 'type:' + self.type + '|pos:' + str(self.pos[0]) + ',' + str(self.pos[1]) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p);
 
 def getEigenvalue(fType, fPos, w, h, intImg):
     eigenvalue = 0;
@@ -237,10 +238,10 @@ def loadFaceDataSet(mitSrc, imgSize, DEBUG):
     return images;
 
 # 画出源数据
-def plotDatas(datas):
+def plotImage(img):
     fig = plt.figure();
     fig.add_subplot(111);
-    plt.imshow(datas, cmap="gray");
+    plt.imshow(img);
     plt.show();
 
 # AdaBoost 算法
@@ -249,33 +250,77 @@ class AdaBoost:
     def __init__(self, datas, features):
         self.datas = datas;
         self.features = features;
+        self.scoreMap = None;
     
     def train(self, SparkMaster):
         conf = SparkConf().setAppName('MNIST CNN Test').setMaster(SparkMaster);
         sc = SparkContext(conf=conf);
-    
-        T = 1;
+        
+        self.initScoreTable(sc);
+        
+        T = 5;
         choose = {};
         for i in range(T):
-            print 'training classifer ', i, ' / ', T;
-            feas = [];
-            for fea in self.features:
-                feas.append([fea.type, fea.pos, fea.w, fea.h]);
-            feas = sc.parallelize(feas, 3);
-            feas = feas.map(lambda line : trainWeakClassifier(line[0], line[1], line[2], line[3], self.datas));
-            
-            items = feas.collect();
-            print len(items);
-            print items[0];
-        
+            print 'training classifer ', i + 1, ' / ', T;
             self.trainWeakClassifier();
             pickFea = self.pickWeakClassifier();
             alpha = 0.5 * np.log((1.0 - (pickFea.err + 0.0001)) / (pickFea.err + 0.0001));
             choose[pickFea] = alpha;
             self.updateSamplesWeight(pickFea, alpha);
-        
+         
         sc.stop();
         return choose;
+    
+    # 训练弱分类器
+    def trainWeakClassifier(self):
+        for fea in self.features:
+            wpos = 0;
+            wneg = 0;
+            for data in self.datas:
+                if data.label == 1:
+                    wpos += data.weight;
+                else:
+                    wneg += data.weight;
+            
+            spos = 0;
+            sneg = 0;
+            bestSplit = 0;
+            bestErr = 1;
+            polarity = 1;
+            
+            sortedScore = self.scoreMap[fea];
+            for item in sortedScore:
+                err = min((spos + wneg - sneg), (sneg + wpos - spos));
+                if err < bestErr:
+                    bestErr = err;
+                    bestSplit = item[1];
+                    if (spos + wneg - sneg) < (sneg + wpos - spos):
+                        polarity = -1;
+                    else:
+                        polarity = 1;
+                
+                data = self.datas[item[0]];
+                if data.label == 1:
+                    spos += data.weight;
+                else:
+                    sneg += data.weight;
+            
+            fea.theta = bestSplit;
+            fea.err = bestErr;
+            fea.p = polarity;
+    
+    def initScoreTable(self, sc):
+        print 'calculating score table...';
+        sMap = {};
+        feas = [];
+        for fea in self.features:
+            feas.append([fea.type, fea.pos, fea.w, fea.h]);
+        feas = sc.parallelize(feas, 2);
+        feas = feas.map(lambda line : calcScoreTable(line[0], line[1], line[2], line[3], self.datas));
+        scores = feas.collect();
+        for i  in range(len(self.features)):
+            sMap[self.features[i]] = scores[i];
+        self.scoreMap = sMap;
     
     # 选择弱分类器
     def pickWeakClassifier(self):
@@ -303,67 +348,89 @@ class AdaBoost:
             else:
                 data.weight = data.weight * np.exp(alpha) / z;
 
-# 训练弱分类器
-def trainWeakClassifier(fType, fPos, w, h, datas):
-    stable = [];
-    wpos = 0;
-    wneg = 0;
-    for data in datas:
-        stable.append([getEigenvalue(fType, fPos, w, h, data), data.label, data.weight]);
-        if data.label == 1:
-            wpos += data.weight;
-        else:
-            wneg += data.weight;
-     
-    sortedScore = sorted(stable, key=operator.itemgetter(0));
-    spos = 0;
-    sneg = 0;
-    bestSplit = 0;
-    bestErr = 1;
-    polarity = 1;
-     
-    for item in sortedScore:
-        err = min((spos + wneg - sneg), (sneg + wpos - spos));
-        if err < bestErr:
-            bestErr = err;
-            bestSplit = item[0];
-            if (spos + wneg - sneg) < (sneg + wpos - spos):
-                polarity = -1;
-            else:
-                polarity = 1;
-         
-        if item[1] == 1:
-            spos += item[2];
-        else:
-            sneg += item[2];
-     
-    return bestSplit, bestErr, polarity;
-
+    
+# 计算每个特征上，每张图片的得分
+def calcScoreTable(fType, fPos, w, h, datas):
+    ftable = [];
+    for i in range(len(datas)):
+        data = datas[i];
+        ftable.append([i, getEigenvalue(fType, fPos, w, h, data)]);
+    ftable = sorted(ftable, key=operator.itemgetter(1));
+    return ftable;
+    
 # 导出模型
 def exportClassifier(filepath, classifiers):
     fileHandler = open(filepath, "w");
-    for fea in classifiers:
-        fileHandler.write(fea.toString() + "\n");
+    for fea, alpha in classifiers.items():
+        fileHandler.write(fea.toString() + '|alpha:' + str(alpha) + "\n");
     fileHandler.close();
-   
+
+# 导入模型
+def importClassifier(filepath):
+    fileHandler = open(filepath,);
+    classifiers = {};
+    for line in fileHandler.readlines():
+        line = line.strip().split('|');
+        clf = HaarLikeFeature(0, 0, 0, 0);
+        alpha = 0;
+        for item in line:
+            tmp = item.strip().split(':');
+            if tmp[0] == 'type':
+                clf.type = tmp[1];
+            elif tmp[0] == 'pos':
+                xy = tmp[1].strip().split(',');
+                clf.pos = (int(xy[0]), int(xy[1]));
+            elif tmp[0] == 'w':
+                clf.w = int(tmp[1]);
+            elif tmp[0] == 'h':
+                clf.h = int(tmp[1]);
+            elif tmp[0] == 'theta':
+                clf.theta = float(tmp[1]);
+            elif tmp[0] == 'p':
+                clf.p = int(tmp[1]);
+            elif tmp[0] == 'alpha':
+                alpha = float(tmp[1]);
+        classifiers[clf] = alpha;
+    return classifiers;
+
+# 生成模型
+def createModel(DEBUG, imgSize, mitSrc, SparkMaster, modelFile):
+    templates = initFeaTemplates();
+    features = initFeatures(imgSize, imgSize, templates);
+     
+    trainDatas = loadFaceDataSet(mitSrc, imgSize, DEBUG);
+        
+    adaBoost = AdaBoost(trainDatas, features);
+    classifiers = adaBoost.train(SparkMaster);
+     
+    print 'exporting model...';
+    exportClassifier(modelFile, classifiers);
+    print 'complete';
+
+# 测试模型
+def testModel(modelFile):
+    classifiers = importClassifier(modelFile);
+
 # 主函数
 def main():
-    DEBUG = False;
+    DEBUG = True;
     imgSize = 24;
     os.environ['SPARK_HOME'] = '/apps/spark/spark-1.4.1-bin-hadoop2.6';
     SparkMaster = 'spark://localhost:7077';
     
     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
     modelFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/model.txt';
-    
-    templates = initFeaTemplates();
-    features = initFeatures(imgSize, imgSize, templates);
-    
-    trainDatas = loadFaceDataSet(mitSrc, imgSize, DEBUG);
-       
-    adaBoost = AdaBoost(trainDatas, features);
-    classifiers = adaBoost.train(SparkMaster);
-    
-    exportClassifier(modelFile, classifiers);
 
-main();
+#     createModel(DEBUG, imgSize, mitSrc, SparkMaster, modelFile);
+#     testModel(modelFile);
+
+# 画出结果
+def plotTarget(filepath):
+    # 打开图像
+    img = Image.open(filepath)
+    img_d = ImageDraw.Draw(img)
+    img_d.line(((20,40), (50,40), (50,60), (20,60), (20,40)), fill='#ff0000');
+    img.save('/home/hadoop/test.jpg');
+ 
+# main();
+plotTarget('/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/s1/1.bmp');
