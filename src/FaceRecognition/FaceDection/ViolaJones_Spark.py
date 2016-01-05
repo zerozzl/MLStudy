@@ -5,8 +5,8 @@ from PIL import Image
 import ImageDraw
 import os
 import operator
-from pyspark import SparkConf
-from pyspark import SparkContext
+# from pyspark import SparkConf
+# from pyspark import SparkContext
 
 # 特征模板
 class FeaTemplate:
@@ -421,16 +421,88 @@ def main():
     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
     modelFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/model.txt';
 
-#     createModel(DEBUG, imgSize, mitSrc, SparkMaster, modelFile);
-#     testModel(modelFile);
+    createModel(DEBUG, imgSize, mitSrc, SparkMaster, modelFile);
+    testModel(modelFile);
 
 # 画出结果
-def plotTarget(filepath):
-    # 打开图像
+def plotTarget(filepath, resultpath, targets=None):
     img = Image.open(filepath)
     img_d = ImageDraw.Draw(img)
-    img_d.line(((20,40), (50,40), (50,60), (20,60), (20,40)), fill='#ff0000');
-    img.save('/home/hadoop/test.jpg');
- 
+    if targets is not None:
+        for target in targets:
+            pos = target[0];
+            edge = target[1];
+            img_d.line((pos, (pos[0] + edge, pos[1]), (pos[0] + edge, pos[1] + edge),
+                        (pos[0], pos[1] + edge), pos), fill='#ff0000');
+    img.save(resultpath);
+
+# 画出特征
+def plotFeatures(filepath, resultpath, features=None):
+    img = Image.open(filepath)
+    img_d = ImageDraw.Draw(img)
+    if features is not None:
+        for fea in features:
+            if fea.type == '1a':
+                img_d.line((fea.pos, (fea.pos[0] + 0.5 * fea.w, fea.pos[1]),
+                            (fea.pos[0] + 0.5 * fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0] + 0.5 * fea.w, fea.pos[1]), (fea.pos[0] + fea.w, fea.pos[1] + fea.h)), fill='#000000');
+            if fea.type == '1b':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + 0.5 * fea.h),
+                            (fea.pos[0], fea.pos[1] + 0.5 * fea.h), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0], fea.pos[1] + 0.5 * fea.h), (fea.pos[0] + fea.w, fea.pos[1] + fea.h)), fill='#000000');
+            if fea.type == '2a':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w / 3.0, fea.pos[1]),
+                            (fea.pos[0] + fea.w / 3.0, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0] + fea.w / 3.0, fea.pos[1]), (fea.pos[0] + 2 * fea.w / 3.0, fea.pos[1] + fea.h)), fill='#000000');
+                img_d.line(((fea.pos[0] + 2 * fea.w / 3.0, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0] + 2 * fea.w / 3.0, fea.pos[1] + fea.h),
+                            (fea.pos[0] + 2 * fea.w / 3.0, fea.pos[1])), fill='#000000');
+            if fea.type == '2b':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w / 4.0, fea.pos[1]),
+                            (fea.pos[0] + fea.w / 4.0, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0] + fea.w / 4.0, fea.pos[1]), (fea.pos[0] + 3 * fea.w / 4.0, fea.pos[1] + fea.h)), fill='#000000');
+                img_d.line(((fea.pos[0] + 3 * fea.w / 4.0, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0] + 3 * fea.w / 4.0, fea.pos[1] + fea.h),
+                            (fea.pos[0] + 3 * fea.w / 4.0, fea.pos[1])), fill='#000000');
+            if fea.type == '2c':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h / 3.0),
+                            (fea.pos[0], fea.pos[1] + fea.h / 3.0), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0], fea.pos[1] + fea.h / 3.0), (fea.pos[0] + fea.w, fea.pos[1] + 2 * fea.h / 3.0)), fill='#000000');
+                img_d.line(((fea.pos[0], fea.pos[1] + 2 * fea.h / 3.0),
+                            (fea.pos[0] + fea.w, fea.pos[1] + 2 * fea.h / 3.0),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + 2 * fea.h / 3.0)), fill='#000000');
+            if fea.type == '2d':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h / 4.0),
+                            (fea.pos[0], fea.pos[1] + fea.h / 4.0), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0], fea.pos[1] + fea.h / 4.0), (fea.pos[0] + fea.w, fea.pos[1] + 3 * fea.h / 4.0)), fill='#000000');
+                img_d.line(((fea.pos[0], fea.pos[1] + 3 * fea.h / 4.0),
+                            (fea.pos[0] + fea.w, fea.pos[1] + 3 * fea.h / 4.0),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + 3 * fea.h / 4.0)), fill='#000000');
+            if fea.type == '3a':
+                img_d.line((fea.pos, (fea.pos[0] + fea.w, fea.pos[1]),
+                            (fea.pos[0] + fea.w, fea.pos[1] + fea.h),
+                            (fea.pos[0], fea.pos[1] + fea.h), fea.pos), fill='#000000');
+                img_d.rectangle(((fea.pos[0] + fea.w / 3.0, fea.pos[1] + fea.h / 3.0), (fea.pos[0] + 2 * fea.w / 3.0, fea.pos[1] + 2 * fea.h / 3.0)), fill='#000000');
+    img.save(resultpath);
+
 # main();
-plotTarget('/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/s1/1.bmp');
+
+img = 'E:/TestDatas/MLStudy/FaceDection/MIT/faces/face02429.bmp';
+resultpath = 'z:/test.jpg';
+targets = [((5, 5), 5)];
+features = [HaarLikeFeature('3a', (5, 5), 6, 6)];
+plotFeatures(img, resultpath, features);

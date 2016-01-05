@@ -364,10 +364,10 @@ def main():
     features = initFeatures(imgSize, imgSize, templates);
     
     trainDatas = loadFaceDataSet(mitSrc, imgSize, DEBUG);
-       
+        
     adaBoost = AdaBoost(trainDatas, features);
     classifiers = adaBoost.train();
-    
+     
     print 'exporting model...';
     exportClassifier(modelFile, classifiers);
 
