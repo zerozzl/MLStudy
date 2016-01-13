@@ -150,7 +150,7 @@ class HaarLikeFeature:
             return 0;
     
     def toString(self):
-        return 'type:' + self.type + '|pos:' + str(self.pos) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p);
+        return 'type:' + self.type + '|pos:' + str(self.pos[0]) + ',' + str(self.pos[1]) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p);
 
 # 初始化特征模板
 def initFeaTemplates():
@@ -350,7 +350,13 @@ def exportClassifier(filepath, classifiers):
     for fea in classifiers:
         fileHandler.write(fea.toString() + "\n");
     fileHandler.close();
-   
+
+def write(features):
+    fileHandler = open('/home/hadoop/python.txt', "w");
+    for fea in features:
+        fileHandler.write(fea.toString() + "\n");
+    fileHandler.close();
+
 # 主函数
 def main():
     DEBUG = True;
@@ -364,11 +370,12 @@ def main():
     features = initFeatures(imgSize, imgSize, templates);
     
     trainDatas = loadFaceDataSet(mitSrc, imgSize, DEBUG);
-        
+         
     adaBoost = AdaBoost(trainDatas, features);
     classifiers = adaBoost.train();
-     
+      
     print 'exporting model...';
     exportClassifier(modelFile, classifiers);
 
-main();
+# main();
+
