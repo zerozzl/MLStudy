@@ -306,7 +306,8 @@ def predict(images, model):
     
     print tpr, fpr;
     tpr = float(tpr) * 100 / posNum;
-    fpr = float(fpr) * 100 / negNum;
+    if negNum > 0:
+        fpr = float(fpr) * 100 / negNum;
     print 'Accuracy: ' + str(float(m - err) * 100 / m) + '%, TPR: ' + str(tpr) + '%, FPR: ' + str(fpr) + '%';
 
 # 查找人脸
@@ -380,12 +381,13 @@ def combineFaces(faces, detSize):
 def main():
     DEBUG = False;
     detSize = 24;
-#     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model.txt';
-    modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
+    modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model.txt';
+#     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model_bak.txt';
+#     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
     model = importAdaboostModel(modelfile);
     
-#     # check accuracy
-#     mitSrc = 'E:/TestDatas/MLStudy/FaceDection/MIT/';
+    # check accuracy
+#     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
 #     yaleSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/Yale/';
 #     orlSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/';
 #     feretSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/FERET/FERET_80_80/';
@@ -394,18 +396,18 @@ def main():
 #     yaleDatas = loadYale(yaleSrc, 24, DEBUG);
 #     orlDatas = loadORL(orlSrc, 24, DEBUG);
 #     feretDatas = loadFERET(feretSrc, 24, DEBUG);
-#     predict(mitDatas, model);
+#     predict(feretDatas, model);
 
-    picFile = 'z:/ViolaJones/lfw1.jpg';
+    picFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/LFW/lfw/Aaron_Guiel/Aaron_Guiel_0001.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
     faces = findFace(image, model, detSize);
-
+ 
     faces = combineFaces(faces, detSize);
-    
+     
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
-    
+     
     for mul in faces:
         targets = faces[mul];
         for face in targets:
@@ -413,6 +415,6 @@ def main():
             img_d.line(((face[0], face[1]), (face[0], face[1] + distance),
                      (face[0] + distance, face[1] + distance),
                     (face[0] + distance, face[1]), (face[0], face[1])), fill=150);
-        img.save('z:/ViolaJones/result.png');
+        img.save('/home/hadoop/result.png');
 
 main();
