@@ -11,9 +11,8 @@ def readImage(filepath, imgSize=None):
     im = im.convert("L");
     if imgSize is not None:
         im = im.resize((imgSize, imgSize));
-    
     im = np.array(im);
-#     im = (im - np.mean(im)) / 255;
+#     im = im - np.mean(im);
     return im;
 
 # 画出源数据
@@ -149,13 +148,21 @@ class HaarLikeFeature:
         
         return eigenvalue / (w * h);
     
+#     # 投票
+#     def getVote(self, wstep, hstep, multiple, intImg):
+#         pos = (self.pos[0] + hstep, self.pos[1] + wstep);
+#         w = self.w * multiple;
+#         h = self.h * multiple;
+#         score = self.getEigenvalue(self.type, pos, w, h, intImg);
+#         score = score * multiple;
+#         if self.p * score <= self.p * self.theta:
+#             return 1;
+#         else:
+#             return 0;
+
     # 投票
-    def getVote(self, wstep, hstep, multiple, intImg):
-        pos = (self.pos[0] + hstep, self.pos[1] + wstep);
-        w = self.w * multiple;
-        h = self.h * multiple;
-        score = self.getEigenvalue(self.type, pos, w, h, intImg);
-        score = score * multiple;
+    def getVote(self, intImg):
+        score = self.getEigenvalue(self.type, self.pos, self.w, self.h, intImg);
         if self.p * score <= self.p * self.theta:
             return 1;
         else:
@@ -163,6 +170,76 @@ class HaarLikeFeature:
     
     def toString(self):
         return 'type:' + self.type + '|pos:' + str(self.pos[0]) + ',' + str(self.pos[1]) + '|w:' + str(self.w) + '|h:' + str(self.h) + '|theta:' + str(self.theta) + '|p:' + str(self.p) + '|weight:' + str(self.weight);
+
+class AdaClassifier:
+    
+    def __init__(self, alp):
+        self.alpha = alp;
+        self.classifiers = [];
+    
+    def predict(self, iim):
+        score = 0;
+        for fea in self.classifiers:
+            score += fea.getVote(iim) * fea.weight;
+            
+        if score >= self.alpha:
+            return 1;
+        else:
+            return 0;
+
+class CascadeClassifier:
+    
+    def __init__(self, adas):
+        self.classifiers = adas;
+    
+    def predict(self, iim):
+        for ada in self.classifiers:
+            if ada.predict(iim) == 0:
+                return 0;
+        return 1;
+
+def importCascadeAdaboostModel(filepath):
+    fr = open(filepath);
+    adas = [];
+    layer = 0;
+    for line in fr.readlines():
+        if line[:5] == 'layer':
+            line = line.strip().split('|');
+            for item in line:
+                item = item.split(':');
+                if item[0] == 'layer':
+                    layer = int(item[1]);
+                elif item[0] == 'alpha':
+                    adas.append(AdaClassifier(float(item[1])));
+        else:
+            ftype = None;
+            pos = None;
+            w = None;
+            h = None;
+            theta = None;
+            p = None;
+            weight = None;
+            line = line.strip().split('|');
+            for item in line:
+                item = item.split(':');
+                if item[0] == 'type':
+                    ftype = item[1];
+                elif item[0] == 'pos':
+                    pos = item[1].split(',');
+                    pos = (int(pos[0]), int(pos[1]));
+                elif item[0] == 'w':
+                    w = int(item[1]);
+                elif item[0] == 'h':
+                    h = int(item[1]);
+                elif item[0] == 'theta':
+                    theta = float(item[1]);
+                elif item[0] == 'p':
+                    p = int(item[1]);
+                elif item[0] == 'weight':
+                    weight = float(item[1]);
+            adas[layer].classifiers.append(HaarLikeFeature(ftype, pos, w, h, theta, p, weight));
+    
+    return CascadeClassifier(adas);
 
 def importAdaboostModel(filepath):
     fr = open(filepath);
@@ -268,11 +345,7 @@ def loadFERET(dateSrc, imgSize, DEBUG):
      
     return images;
 
-def predict(images, model):
-    zw = 0.0;
-    for item in model:
-        zw += item.weight;
-    
+def calcModelAccuracy(images, model):
     posNum = 0;
     negNum = 0;
     tpr = 0;
@@ -282,15 +355,7 @@ def predict(images, model):
     m = len(images);
     for i in range(m):
         print 'predicting img: ' + str(i + 1) + '/' + str(m);
-        score = 0.0;
-        pred = None;
-        for item in model:
-            score += item.getVote(0, 0, 1, images[i]) * item.weight;
-        
-        if score >= 0.5 * zw:
-            pred = 1;
-        else:
-            pred = 0;
+        pred = model.predict(images[i]);
         
         if images[i].label == 1:
             posNum += 1;
@@ -377,38 +442,57 @@ def combineFaces(faces, detSize):
         combineResult[key] = result;
     
     return combineResult;
-    
-def main():
+
+
+def plotMisClassDatas():
+    errs = [];
+    fr = open('/home/hadoop/ProgramDatas/MLStudy/FaceDection/mis_classifications.txt');
+    for line in fr.readlines():
+        errs.append(int(line.strip()));
+    fr = open('/home/hadoop/ProgramDatas/MLStudy/FaceDection/train_data.txt');
+    cur = 0;
+    for line in fr.readlines():
+        if cur in errs:
+            line = line.strip().split(',')[:-1];
+            line = [int(x) for x in line];
+            img = np.reshape(line, (24, 24));
+            plotDatas(img);
+        cur += 1;
+
+def checkModel():
     DEBUG = False;
     detSize = 24;
-#     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model.txt';
-#     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model_bak.txt';
-    modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
-    model = importAdaboostModel(modelfile);
+    modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
+    model = importCascadeAdaboostModel(modelfile);
     
     # check accuracy
-#     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
-#     yaleSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/Yale/';
-#     orlSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/';
-#     feretSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/FERET/FERET_80_80/';
-#      
-#     mitDatas = loadMIT(mitSrc, 24, DEBUG);
-#     yaleDatas = loadYale(yaleSrc, 24, DEBUG);
-#     orlDatas = loadORL(orlSrc, 24, DEBUG);
-#     feretDatas = loadFERET(feretSrc, 24, DEBUG);
-#     predict(feretDatas, model);
+    mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
+    yaleSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/Yale/';
+    orlSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/';
+    feretSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/FERET/FERET_80_80/';
+    
+    mitDatas = loadMIT(mitSrc, 24, DEBUG);
+    yaleDatas = loadYale(yaleSrc, 24, DEBUG);
+    orlDatas = loadORL(orlSrc, 24, DEBUG);
+    feretDatas = loadFERET(feretSrc, 24, DEBUG);
+    calcModelAccuracy(mitDatas, model);
 
+def faceDection():
+    detSize = 24;
+    modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
+    model = importCascadeAdaboostModel(modelfile);
+    
 #     picFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/LFW/lfw/Aaron_Guiel/Aaron_Guiel_0001.jpg';
-    picFile = 'Z:/ViolaJones/foot2.jpg';
+    picFile = '/home/hadoop/test/1.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
     faces = findFace(image, model, detSize);
- 
+  
 #     faces = combineFaces(faces, detSize);
-     
+      
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
-     
+      
     for mul in faces:
         targets = faces[mul];
         for face in targets:
@@ -416,6 +500,9 @@ def main():
             img_d.line(((face[0], face[1]), (face[0], face[1] + distance),
                      (face[0] + distance, face[1] + distance),
                     (face[0] + distance, face[1]), (face[0], face[1])), fill=150);
-        img.save('Z:/ViolaJones/result.png');
+        img.save('/home/hadoop/test/result.png');
 
-main();
+
+# plotMisClassDatas();
+# checkModel();
+faceDection();
