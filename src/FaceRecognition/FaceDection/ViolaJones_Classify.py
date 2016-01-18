@@ -381,9 +381,9 @@ def combineFaces(faces, detSize):
 def main():
     DEBUG = False;
     detSize = 24;
-    modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model.txt';
+#     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model.txt';
 #     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/adaboost_model_bak.txt';
-#     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
+    modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
     model = importAdaboostModel(modelfile);
     
     # check accuracy
@@ -398,12 +398,13 @@ def main():
 #     feretDatas = loadFERET(feretSrc, 24, DEBUG);
 #     predict(feretDatas, model);
 
-    picFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/LFW/lfw/Aaron_Guiel/Aaron_Guiel_0001.jpg';
+#     picFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/LFW/lfw/Aaron_Guiel/Aaron_Guiel_0001.jpg';
+    picFile = 'Z:/ViolaJones/foot2.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
     faces = findFace(image, model, detSize);
  
-    faces = combineFaces(faces, detSize);
+#     faces = combineFaces(faces, detSize);
      
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
@@ -415,6 +416,6 @@ def main():
             img_d.line(((face[0], face[1]), (face[0], face[1] + distance),
                      (face[0] + distance, face[1] + distance),
                     (face[0] + distance, face[1]), (face[0], face[1])), fill=150);
-        img.save('/home/hadoop/result.png');
+        img.save('Z:/ViolaJones/result.png');
 
 main();
