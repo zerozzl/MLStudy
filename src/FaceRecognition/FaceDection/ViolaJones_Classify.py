@@ -148,21 +148,12 @@ class HaarLikeFeature:
         
         return eigenvalue / (w * h);
     
-#     # 投票
-#     def getVote(self, wstep, hstep, multiple, intImg):
-#         pos = (self.pos[0] + hstep, self.pos[1] + wstep);
-#         w = self.w * multiple;
-#         h = self.h * multiple;
-#         score = self.getEigenvalue(self.type, pos, w, h, intImg);
-#         score = score * multiple;
-#         if self.p * score <= self.p * self.theta:
-#             return 1;
-#         else:
-#             return 0;
-
     # 投票
-    def getVote(self, intImg):
-        score = self.getEigenvalue(self.type, self.pos, self.w, self.h, intImg);
+    def getVote(self, hstep, wstep, multiple, intImg):
+        pos = (self.pos[0] + hstep, self.pos[1] + wstep);
+        w = self.w * multiple;
+        h = self.h * multiple;
+        score = self.getEigenvalue(self.type, pos, w, h, intImg);
         if self.p * score <= self.p * self.theta:
             return 1;
         else:
@@ -173,14 +164,17 @@ class HaarLikeFeature:
 
 class AdaClassifier:
     
-    def __init__(self, alp):
+    def __init__(self, alp, cla=None):
         self.alpha = alp;
-        self.classifiers = [];
+        if cla is not None:
+            self.classifiers = cla;
+        else:
+            self.classifiers = [];
     
-    def predict(self, iim):
+    def predict(self, hstep, wstep, multiple, iim):
         score = 0;
         for fea in self.classifiers:
-            score += fea.getVote(iim) * fea.weight;
+            score += fea.getVote(hstep, wstep, multiple, iim) * fea.weight;
             
         if score >= self.alpha:
             return 1;
@@ -192,9 +186,9 @@ class CascadeClassifier:
     def __init__(self, adas):
         self.classifiers = adas;
     
-    def predict(self, iim):
+    def predict(self, hstep, wstep, multiple, iim):
         for ada in self.classifiers:
-            if ada.predict(iim) == 0:
+            if ada.predict(hstep, wstep, multiple, iim) == 0:
                 return 0;
         return 1;
 
@@ -243,6 +237,7 @@ def importCascadeAdaboostModel(filepath):
 
 def importAdaboostModel(filepath):
     fr = open(filepath);
+    alpha = 0.0;
     model = [];
     for line in fr.readlines():
         items = line.strip().split('|');
@@ -271,7 +266,9 @@ def importAdaboostModel(filepath):
             elif key == 'weight':
                 weight = float(val);
         model.append(HaarLikeFeature(ftype, pos, w, h, theta, p, weight));
-    return model;
+        alpha += 0.5 * weight;
+    
+    return AdaClassifier(alpha, model);
 
 # 读取MIT数据
 def loadMIT(dateSrc, imgSize, DEBUG):
@@ -376,70 +373,61 @@ def calcModelAccuracy(images, model):
     print 'Accuracy: ' + str(float(m - err) * 100 / m) + '%, TPR: ' + str(tpr) + '%, FPR: ' + str(fpr) + '%';
 
 # 查找人脸
-def findFace(image, model, detSize):
+def findFace(image, model, detSize, step):
     faces = {};
-    zw = 0.0;
-    for item in model:
-        zw += item.weight;
     ih, iw = np.shape(image.orig);
-    
     multiple = 1;
-    step = 6;
     
-    while(detSize < iw or detSize < ih):
-        xstep = iw - (detSize + step) + 1;
-        ystep = ih - (detSize + step) + 1;
+    while(detSize * multiple < iw and detSize * multiple < ih):
+        xstep = iw - (detSize * multiple + step) + 1;
+        ystep = ih - (detSize * multiple + step) + 1;
+        
         total = ((xstep / step) + 1) * ((ystep / step) + 1);
         current = 0;
         for i in range(0, ystep, step):
             for j in range(0, xstep, step):
                 current += 1;
-                print 'detSize: ' + str(detSize) + ', inner: ' + str(current) + '/' + str(total);
-                score = 0.0;
-                for item in model:
-                    score += item.getVote(j, i, multiple, image) * item.weight;
-                
-                if score >= 0.5 * zw:
+                print 'detSize: ' + str(detSize * multiple) + ', inner: ' + str(current) + '/' + str(total);
+                pred = model.predict(i, j, multiple, image)
+                if pred == 1:
                     if faces.has_key(multiple):
                         tmp = faces.get(multiple);
-                        tmp.append([i, j]);
+                        tmp.append([j, i]);
                         faces[multiple] = tmp;
                     else:
-                        faces[multiple] = [[i, j]];
-                    
+                        faces[multiple] = [[j, i]];
+        
         multiple = multiple * 2;
-        detSize = detSize * 2;
     
     return faces;
 
 # 合并查找人脸的结果
-def combineFaces(faces, detSize):
-    T = 5;
+def combineFaces(faces, detSize, T):
     combineResult = {};
-    for key in faces:
-        all = faces.get(key);
+    for mult in faces:
+        allFace = faces.get(mult);
         result = [];
-        if len(all) < T:
+        if len(allFace) < T:
             continue;
         
-        R = (key * detSize) * (key * detSize);
-        while(len(all) > 0):
-            point = all[0];
+        region = (mult * detSize) * (mult * detSize);
+        while(len(allFace) > 0):
+            point = allFace[0];
             stack = [];
-            all.remove(point);
-            for item in all:
-                if (np.square(point[0]-item[0]) + np.square(point[1]-item[1])) < R:
+            allFace.remove(point);
+            for item in allFace:
+                if (np.square(point[0] - item[0]) + np.square(point[1] - item[1])) < region:
                     stack.append(item);
             if len(stack) > T:
                 size = len(stack) + 1;
                 target = point;
                 for item in stack:
                     target = [target[0] + item[0], target[1] + item[1]];
-                    all.remove(item);
+                    allFace.remove(item);
                 target = [target[0] / size, target[1] / size];
                 result.append(target);
         
-        combineResult[key] = result;
+        combineResult[mult] = result;
     
     return combineResult;
 
@@ -461,38 +449,43 @@ def plotMisClassDatas():
 
 def checkModel():
     DEBUG = False;
-    detSize = 24;
+    imgSize = 24;
     modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
     model = importCascadeAdaboostModel(modelfile);
     
     # check accuracy
     mitSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/MIT/';
-    yaleSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/Yale/';
-    orlSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/';
-    feretSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/FERET/FERET_80_80/';
+#     yaleSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/Yale/';
+#     orlSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/ORL/';
+#     feretSrc = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/FERET/FERET_80_80/';
     
-    mitDatas = loadMIT(mitSrc, 24, DEBUG);
-    yaleDatas = loadYale(yaleSrc, 24, DEBUG);
-    orlDatas = loadORL(orlSrc, 24, DEBUG);
-    feretDatas = loadFERET(feretSrc, 24, DEBUG);
+    mitDatas = loadMIT(mitSrc, imgSize, DEBUG);
+#     yaleDatas = loadYale(yaleSrc, imgSize, DEBUG);
+#     orlDatas = loadORL(orlSrc, imgSize, DEBUG);
+#     feretDatas = loadFERET(feretSrc, imgSize, DEBUG);
     calcModelAccuracy(mitDatas, model);
 
 def faceDection():
     detSize = 24;
-    modelfile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
-    model = importCascadeAdaboostModel(modelfile);
-    
-#     picFile = '/home/hadoop/ProgramDatas/MLStudy/FaceDection/LFW/lfw/Aaron_Guiel/Aaron_Guiel_0001.jpg';
-    picFile = '/home/hadoop/test/1.jpg';
+    step = 10;
+    T = 5;
+    picFile = 'Z:/ViolaJones/qq1.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
-    faces = findFace(image, model, detSize);
-  
-#     faces = combineFaces(faces, detSize);
-      
+
+    modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
+    model = importCascadeAdaboostModel(modelfile);
+    faces = findFace(image, model, detSize, step);
+     
+#     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
+# #     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model_bak.txt';
+#     model = importAdaboostModel(modelfile);
+#     faces = findFace(image, model, detSize);
+ 
+    faces = combineFaces(faces, detSize, T);
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
-      
+     
     for mul in faces:
         targets = faces[mul];
         for face in targets:
@@ -500,7 +493,7 @@ def faceDection():
             img_d.line(((face[0], face[1]), (face[0], face[1] + distance),
                      (face[0] + distance, face[1] + distance),
                     (face[0] + distance, face[1]), (face[0], face[1])), fill=150);
-        img.save('/home/hadoop/test/result.png');
+        img.save('Z:/ViolaJones/result.png');
 
 
 # plotMisClassDatas();
