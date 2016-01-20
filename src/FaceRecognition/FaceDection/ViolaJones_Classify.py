@@ -434,16 +434,16 @@ def combineFaces(faces, detSize, T):
 
 def plotMisClassDatas():
     errs = [];
-    fr = open('/home/hadoop/ProgramDatas/MLStudy/FaceDection/mis_classifications.txt');
+    fr = open('E:/TestDatas/MLStudy/FaceDection/mis_classifications.txt');
     for line in fr.readlines():
         errs.append(int(line.strip()));
-    fr = open('/home/hadoop/ProgramDatas/MLStudy/FaceDection/train_data.txt');
+    fr = open('E:/TestDatas/MLStudy/FaceDection/train_data_2.txt');
     cur = 0;
     for line in fr.readlines():
         if cur in errs:
             line = line.strip().split(',')[:-1];
             line = [int(x) for x in line];
-            img = np.reshape(line, (24, 24));
+            img = np.reshape(line, (30, 30));
             plotDatas(img);
         cur += 1;
 
@@ -466,14 +466,14 @@ def checkModel():
     calcModelAccuracy(mitDatas, model);
 
 def faceDection():
-    detSize = 24;
+    detSize = 30;
     step = 10;
     T = 5;
-    picFile = 'Z:/ViolaJones/qq1.jpg';
+    picFile = 'Z:/ViolaJones/foot2.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
 
-    modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
+    modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model_2.txt';
     model = importCascadeAdaboostModel(modelfile);
     faces = findFace(image, model, detSize, step);
      
@@ -496,6 +496,6 @@ def faceDection():
         img.save('Z:/ViolaJones/result.png');
 
 
-# plotMisClassDatas();
+plotMisClassDatas();
 # checkModel();
-faceDection();
+# faceDection();
