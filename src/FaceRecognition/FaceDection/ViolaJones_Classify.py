@@ -401,8 +401,8 @@ def findFace(image, model, detSize, step):
     
     return faces;
 
-# 合并查找人脸的结果
-def combineFaces(faces, detSize, T):
+# 合并同等尺寸下检测到的图像
+def combineSameSizeFaces(faces, detSize, T):
     combineResult = {};
     for mult in faces:
         allFace = faces.get(mult);
@@ -427,10 +427,47 @@ def combineFaces(faces, detSize, T):
                 target = [target[0] / size, target[1] / size];
                 result.append(target);
         
-        combineResult[mult] = result;
-    
+        if len(result) > 0:
+            combineResult[mult] = result;
+            
     return combineResult;
 
+# 合并不同尺寸下检测到的图像
+def combineDiffSizeFaces(faces, detSize):
+    faces = sorted(faces.iteritems(), key=lambda item:item[0], reverse=True);
+    for mfs, mfaces in faces:
+        for mf in mfaces:
+            for ifs, ifaces in faces:
+                if mfs != ifs:
+                    rem = [];
+                    for f in ifaces:
+                        xstart = min(mf[0], f[0]);
+                        xend = max(mf[0] + mfs * detSize, f[0] + ifs * detSize);
+                        xwidth = (mfs * detSize) + (ifs * detSize) - (xend - xstart);
+                          
+                        ystart = min(mf[1], f[1]);
+                        yend = max(mf[1] + mfs * detSize, f[1] + ifs * detSize);
+                        ywidth = mfs * detSize + ifs * detSize - (yend - ystart);
+                          
+                        if xwidth <= 0 or ywidth <= 0:
+                            continue;
+                        else:
+                            area = xwidth * ywidth;
+                            area1 = np.square(ifs * detSize);
+                            ratio = float(area) / area1;
+                              
+                            if ratio >= 0.5:
+                                rem.append(f);
+                      
+                    for f in rem:
+                        ifaces.remove(f);
+    
+    combineResult = {};
+    for item in faces:
+        if len(item[1]) > 0:
+            combineResult[item[0]] = item[1];
+      
+    return combineResult;
 
 def plotMisClassDatas():
     errs = [];
@@ -467,13 +504,13 @@ def checkModel():
 
 def faceDection():
     detSize = 30;
-    step = 10;
+    step = 5;
     T = 5;
-    picFile = 'Z:/ViolaJones/foot2.jpg';
+    picFile = 'Z:/ViolaJones/foot1.jpg';
     image = IntegralImage(readImage(picFile), -1);
 #     plotDatas(image.orig);
 
-    modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model_2.txt';
+    modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
     model = importCascadeAdaboostModel(modelfile);
     faces = findFace(image, model, detSize, step);
      
@@ -482,7 +519,9 @@ def faceDection():
 #     model = importAdaboostModel(modelfile);
 #     faces = findFace(image, model, detSize);
  
-    faces = combineFaces(faces, detSize, T);
+#     faces = combineSameSizeFaces(faces, detSize, T);
+#     faces = combineDiffSizeFaces(faces, detSize);
+    
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
      
@@ -496,6 +535,6 @@ def faceDection():
         img.save('Z:/ViolaJones/result.png');
 
 
-plotMisClassDatas();
+# plotMisClassDatas();
 # checkModel();
-# faceDection();
+faceDection();
