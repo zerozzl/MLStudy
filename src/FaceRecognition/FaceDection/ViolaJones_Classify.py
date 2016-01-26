@@ -469,18 +469,18 @@ def combineDiffSizeFaces(faces, detSize):
       
     return combineResult;
 
-def plotMisClassDatas():
+def plotMisClassDatas(imgSize):
     errs = [];
     fr = open('E:/TestDatas/MLStudy/FaceDection/mis_classifications.txt');
     for line in fr.readlines():
         errs.append(int(line.strip()));
-    fr = open('E:/TestDatas/MLStudy/FaceDection/train_data_2.txt');
+    fr = open('E:/TestDatas/MLStudy/FaceDection/train_data.txt');
     cur = 0;
     for line in fr.readlines():
         if cur in errs:
             line = line.strip().split(',')[:-1];
             line = [int(x) for x in line];
-            img = np.reshape(line, (30, 30));
+            img = np.reshape(line, (imgSize, imgSize));
             plotDatas(img);
         cur += 1;
 
@@ -503,7 +503,7 @@ def checkModel():
     calcModelAccuracy(mitDatas, model);
 
 def faceDection():
-    detSize = 30;
+    detSize = 24;
     step = 5;
     T = 5;
     picFile = 'Z:/ViolaJones/foot1.jpg';
@@ -513,18 +513,18 @@ def faceDection():
     modelfile = 'E:/TestDatas/MLStudy/FaceDection/CascadeAdaboost_model.txt';
     model = importCascadeAdaboostModel(modelfile);
     faces = findFace(image, model, detSize, step);
-     
+    
 #     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model.txt';
 # #     modelfile = 'E:/TestDatas/MLStudy/FaceDection/adaboost_model_bak.txt';
 #     model = importAdaboostModel(modelfile);
-#     faces = findFace(image, model, detSize);
- 
-#     faces = combineSameSizeFaces(faces, detSize, T);
+#     faces = findFace(image, model, detSize, step);
+
+    faces = combineSameSizeFaces(faces, detSize, T);
 #     faces = combineDiffSizeFaces(faces, detSize);
     
     img = Image.open(picFile);
     img_d = ImageDraw.Draw(img);
-     
+    
     for mul in faces:
         targets = faces[mul];
         for face in targets:
@@ -535,6 +535,6 @@ def faceDection():
         img.save('Z:/ViolaJones/result.png');
 
 
-# plotMisClassDatas();
+# plotMisClassDatas(24);
 # checkModel();
 faceDection();
